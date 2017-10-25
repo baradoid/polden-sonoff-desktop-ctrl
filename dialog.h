@@ -33,7 +33,9 @@ private:
 
     QNetworkReply *reply;
 
-    QWebSocketServer *m_pWebSocketServer;
+    QSslConfiguration sslConfiguration;
+
+    //QWebSocketServer *m_pWebSocketServer;
     QTcpServer *tcpServ;
     QTcpSocket *tcpSock;
     QSslSocket *sslSock;
@@ -80,7 +82,7 @@ private slots:
     void handleServerError(QWebSocketProtocol::CloseCode closeCode);
     void handleEncrypted();
 
-    void handleAcceptError();
+    void handleAcceptError(QAbstractSocket::SocketError);
 
 };
 

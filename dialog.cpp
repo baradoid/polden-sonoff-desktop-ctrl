@@ -17,19 +17,35 @@ Dialog::Dialog(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::Dialog),
     reply(Q_NULLPTR)/*,
-    m_pWebSocketServer(QStringLiteral("Echo Server"),
-                       QWebSocketServer::SecureMode, this),
+    m_pWebSocketServer(Q_NULLPTR),
     tcpServ(this)*/
 {
     ui->setupUi(this);
 
     //int port = 9001;
+    QFile certFile(QStringLiteral("ssl/server.crt"));
+    QFile keyFile(QStringLiteral("ssl/priv.key"));
+
+//    QFile certFile(QStringLiteral("ssl/localhost.cert"));
+//    QFile keyFile(QStringLiteral("ssl/localhost.key"));
+    qDebug() << certFile.open(QIODevice::ReadOnly);
+    qDebug() << keyFile.open(QIODevice::ReadOnly);
+
+    QSslCertificate certificate(&certFile, QSsl::Pem);
+    QSslKey sslKey(&keyFile, QSsl::Rsa, QSsl::Pem);
+    certFile.close();
+    keyFile.close();
+
+    //sslConfiguration.setPeerVerifyMode(QSslSocket::VerifyNone);
+    sslConfiguration.setLocalCertificate(certificate);
+    sslConfiguration.setPrivateKey(sslKey);
+    sslConfiguration.setProtocol(QSsl::AnyProtocol);
+
 
     sslServ = new SslServer(this);
     if (sslServ->listen(QHostAddress::Any, PORT)) {
         qDebug() << "Echoserver listening on port" << PORT;
         connect(sslServ, SIGNAL(newConnection()),  this, SLOT(onNewSslConnection()));
-
         //connect(m_pWebSocketServer, &QWebSocketServer::closed, this, &EchoServer::closed);
     }
 
@@ -40,40 +56,30 @@ Dialog::Dialog(QWidget *parent) :
 //    //connect(m_pWebSocketServer, &QWebSocketServer::closed, this, &EchoServer::closed);
 //    }
 
-//    m_pWebSocketServer = new QWebSocketServer(QStringLiteral("Echo Server"),
-//                                                QWebSocketServer::NonSecureMode, this);
+//    m_pWebSocketServer = new QWebSocketServer(QStringLiteral("SSL Echo Server"),
+//                                                QWebSocketServer::SecureMode, this);
 
-//    QSslConfiguration sslConfiguration;
-//    QFile certFile(QStringLiteral("ssl/localhost.cert"));
-//    QFile keyFile(QStringLiteral("ssl/localhost.key"));
-//    certFile.open(QIODevice::ReadOnly);
-//    keyFile.open(QIODevice::ReadOnly);
-//    QSslCertificate certificate(&certFile, QSsl::Pem);
-//    QSslKey sslKey(&keyFile, QSsl::Rsa, QSsl::Pem);
-//    certFile.close();
-//    keyFile.close();
-//    //sslConfiguration.setPeerVerifyMode(QSslSocket::AutoVerifyPeer);
-//    sslConfiguration.setLocalCertificate(certificate);
-//    sslConfiguration.setPrivateKey(sslKey);
-//    //sslConfiguration.setProtocol(QSsl::SslV2);
+
+////    //sslConfiguration.setProtocol(QSsl::SslV2);
 //    m_pWebSocketServer->setSslConfiguration(sslConfiguration);
+//    m_pWebSocketServer->set
+
+//    connect(m_pWebSocketServer,  SIGNAL(newConnection()),
+//            this,  SLOT(handleWSNwConn()));
+//    connect(m_pWebSocketServer, SIGNAL(sslErrors(QList<QSslError>)),
+//            this, SLOT(handleSSLError(QList<QSslError>)));
+//    //connect(m_pWebSocketServer, &QWebSocketServer::closed, this, &EchoServer::closed);
+//    connect(m_pWebSocketServer, SIGNAL(originAuthenticationRequired(QWebSocketCorsAuthenticator*)),
+//            this, SLOT(handleOriginAuthenticationRequired(QWebSocketCorsAuthenticator*)));
+//    connect(m_pWebSocketServer, SIGNAL(peerVerifyError(QSslError)),
+//            this, SLOT(handlePeerVerifyError(QSslError)));
+//    connect(m_pWebSocketServer, SIGNAL(serverError(QWebSocketProtocol::CloseCode)),
+//            this, SLOT(handleServerError(QWebSocketProtocol::CloseCode)));
+//    connect(m_pWebSocketServer, SIGNAL(acceptError(QAbstractSocket::SocketError)),
+//            this, SLOT(handleAcceptError(QAbstractSocket::SocketError)));
 
 //    if (m_pWebSocketServer->listen(QHostAddress::Any, PORT)) {
 //        qDebug() << "Echoserver listening on port" << PORT;
-//        connect(m_pWebSocketServer,  &QWebSocketServer::newConnection,
-//                this,  &Dialog::handleWSNwConn);
-//        connect(m_pWebSocketServer, SIGNAL(sslErrors(QList<QSslError>)),
-//                this, SLOT(handleSSLError(QList<QSslError>)));
-//        //connect(m_pWebSocketServer, &QWebSocketServer::closed, this, &EchoServer::closed);
-//        connect(m_pWebSocketServer, SIGNAL(originAuthenticationRequired(QWebSocketCorsAuthenticator*)),
-//                this, SLOT(handleOriginAuthenticationRequired(QWebSocketCorsAuthenticator*)));
-//        connect(m_pWebSocketServer, SIGNAL(peerVerifyError(QSslError)),
-//                this, SLOT(handlePeerVerifyError(QSslError)));
-//        connect(m_pWebSocketServer, SIGNAL(serverError(QWebSocketProtocol::CloseCode)),
-//                this, SLOT(handleServerError(QWebSocketProtocol::CloseCode)));
-//        connect(m_pWebSocketServer, SIGNAL(acceptError(QAbstractSocket::SocketError)),
-//                this, SLOT(handleAcceptError()));
-
 //    }
 
 
@@ -163,7 +169,10 @@ void Dialog::onNewConnection()
 
 void Dialog::handleWSNwConn()
 {
+    //QWebSocket *ws = m_pWebSocketServer->nextPendingConnection();
+
     qDebug() << "handleWSNwConn";
+
 }
 
 void Dialog::onNewSslConnection()
@@ -171,9 +180,6 @@ void Dialog::onNewSslConnection()
     qDebug() << "onNewSSLConnection";
     sslSock = (QSslSocket*)sslServ->nextPendingConnection();
 
-
-
-    qDebug() << "isEncrypted" << sslSock->isEncrypted();
     connect(sslSock, SIGNAL(encrypted()),
             this, SLOT(handleEncrypted()));
     connect(sslSock, SIGNAL(sslErrors(QList<QSslError>)),
@@ -185,52 +191,8 @@ void Dialog::onNewSslConnection()
     connect(sslSock, SIGNAL(disconnected()),
             this, SLOT(handleSocketDisconnected()));
 
-    //QSslConfiguration sslConfiguration;
-    QFile certFile(QStringLiteral("ssl/server.crt"));
-    QFile keyFile(QStringLiteral("ssl/priv.key"));
-
-//    QFile certFile(QStringLiteral("ssl/localhost.cert"));
-//    QFile keyFile(QStringLiteral("ssl/localhost.key"));
-    qDebug() << certFile.open(QIODevice::ReadOnly);
-    qDebug() << keyFile.open(QIODevice::ReadOnly);
-
-    QSslCertificate certificate(&certFile, QSsl::Pem);
-    QSslKey sslKey(&keyFile, QSsl::Rsa, QSsl::Pem);
-    certFile.close();
-    keyFile.close();
-
-    //sslConfiguration.setPeerVerifyMode(QSslSocket::VerifyNone);
-    //sslConfiguration.setLocalCertificate(certificate);
-    //sslConfiguration.setPrivateKey(sslKey);
-    //sslConfiguration.setProtocol(QSsl::AnyProtocol);
-
-
-    //sslSock->setSslConfiguration(sslConfiguration);
-    sslSock->setPrivateKey(sslKey);
-    sslSock->setLocalCertificate(certificate);
-
-    sslSock->setProtocol(QSsl::AnyProtocol);
-    //sslSock->setProtocol(QSsl::SslV2);
-
-    sslSock->setLocalCertificate(certificate);
+    sslSock->setSslConfiguration(sslConfiguration);
     sslSock->startServerEncryption();
-
-//    tcpSock = tcpServ->nextPendingConnection();
-//    //sslSock->ignoreSslErrors();
-//    connect(tcpSock, SIGNAL(encrypted()),
-//            this, SLOT(handleEncrypted()));
-//    connect(tcpSock, SIGNAL(sslErrors(QList<QSslError>)),
-//            this, SLOT(handleSSLError(QList<QSslError>)));
-//    connect(tcpSock, SIGNAL(readyRead()),
-//            this, SLOT(handleSocketReadyRead()));
-//    connect(tcpSock, SIGNAL(error(QAbstractSocket::SocketError)),
-//            this, SLOT(handleSocketError(QAbstractSocket::SocketError)));
-//    connect(tcpSock, SIGNAL(disconnected()),
-//            this, SLOT(handleSocketDisconnected()));
-
-    //serverStatusLabel->setText(tr("Accepted connection"));
-    //tcpServer.close();
-
 }
 
 void Dialog::handleSocketError(QAbstractSocket::SocketError err)
@@ -238,7 +200,6 @@ void Dialog::handleSocketError(QAbstractSocket::SocketError err)
     qDebug() << "handleSocketError" << err << sslSock->sslErrors();
 //    qDebug() << sslSock->sslErrors();
 //    sslSock->ignoreSslErrors();
-
 
 }
 
@@ -259,8 +220,44 @@ void Dialog::handlePeerVerifyError(const QSslError &error)
 
 void Dialog::handleSslSocketReadyRead()
 {
-    qDebug() << "handleSocketReadyRead" << sslSock->readAll();
+    QByteArray ba = sslSock->readAll();
+    qDebug() << "handleSocketReadyRead" << ba;
     //qDebug() << "handleSocketReadyRead" ;
+    QString msg(ba);
+    if(msg.startsWith("POST /dispatch/device HTTP/1.1\r\n")){
+        msg.remove("POST /dispatch/device HTTP/1.1\r\n");
+        //qDebug() << qPrintable(msg);
+
+
+        QJsonObject json;
+        json.insert("error", 0);
+        json.insert("reason", "ok");
+        json.insert("IP", "192.168.0.105");
+        json.insert("port", PORT);
+        QByteArray data = QJsonDocument(json).toJson().data();
+        QByteArray postDataSize = QByteArray::number(data.size());
+
+        QJsonObject jsonAck;
+        jsonAck.insert("error", 0);
+        jsonAck.insert("deviceid", "1000113837");
+        jsonAck.insert("apikey", "111111111-1111-1111-1111-111111111111");
+        QByteArray dataAck = QJsonDocument(jsonAck).toJson().data();
+        //QByteArray postDataSize = QByteArray::number(dataAck.size());
+
+        dataAck = "{\"error\" : 0, \"deviceid\" : 1000113837, "
+                  "\"apikey\" : \"111111111-1111-1111-1111-111111111111\"}";
+        QString contLength = QString("Content-Length: %1\r\n\r\n").arg(dataAck.length());
+        //qDebug() << "ans --------";
+        //qDebug() << "Content-Type: application/json\r\n";
+        //qDebug() << qPrintable(contLength);
+        //qDebug() << dataAck;
+        sslSock->write("HTTP/1.1 200 OK\r\n");
+        sslSock->write("Server: openresty\r\n");
+        sslSock->write("Content-Type: application/json\r\n");
+        sslSock->write(qPrintable(contLength));
+        sslSock->write("Connection: keep-alive\r\n");
+        sslSock->write(dataAck);
+    }
 
 }
 
@@ -390,7 +387,7 @@ void Dialog::on_pushButtonGetReq_clicked()
 }
 
 
-void Dialog::handleAcceptError()
+void Dialog::handleAcceptError(QAbstractSocket::SocketError)
 {
     qDebug() << "handleAcceptError";
 

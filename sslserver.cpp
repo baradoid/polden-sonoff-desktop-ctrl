@@ -4,7 +4,7 @@
 #include <QtNetwork/QSslKey>
 #include <QSslConfiguration>
 #include <QFile>
-
+#include <QWebSocket>
 
 SslServer::SslServer(QObject *parent)
     :QTcpServer(parent)
@@ -21,6 +21,7 @@ SslServer::SslServer(QObject *parent)
 void SslServer::incomingConnection(qintptr socketDescriptor)
 {
     QSslSocket *sslSock = new QSslSocket;
+    //QWebSocket *sslSock = new QWebSocket();
     if (sslSock->setSocketDescriptor(socketDescriptor)) {
         qDebug() << "setSocketDescriptor ok";
 
