@@ -221,13 +221,24 @@ void Dialog::handlePeerVerifyError(const QSslError &error)
 void Dialog::handleSslSocketReadyRead()
 {
     QByteArray ba = sslSock->readAll();
-    qDebug() << "handleSocketReadyRead" << ba;
+
     //qDebug() << "handleSocketReadyRead" ;
     QString msg(ba);
     if(msg.startsWith("POST /dispatch/device HTTP/1.1\r\n")){
+        qDebug() << "dispatch/device";
+        //qDebug() << "handleSocketReadyRead" << ba;
         msg.remove("POST /dispatch/device HTTP/1.1\r\n");
+        int ind = msg.indexOf("\r\n");
+        msg = msg.mid(ind+2);
+        ind = msg.indexOf("\r\n");
+        msg = msg.mid(ind+2);
+        ind = msg.indexOf("\r\n");
+        msg = msg.mid(ind+2);
         //qDebug() << qPrintable(msg);
 
+        QJsonDocument itemDoc = QJsonDocument::fromJson(msg.toLatin1());
+        QJsonObject itemObject = itemDoc.object();
+        //qDebug()<<itemObject;
 
         QJsonObject json;
         json.insert("error", 0);
@@ -244,19 +255,102 @@ void Dialog::handleSslSocketReadyRead()
         QByteArray dataAck = QJsonDocument(jsonAck).toJson().data();
         //QByteArray postDataSize = QByteArray::number(dataAck.size());
 
-        dataAck = "{\"error\" : 0, \"deviceid\" : 1000113837, "
-                  "\"apikey\" : \"111111111-1111-1111-1111-111111111111\"}";
+        dataAck = QByteArray("{\n\"error\" : 0, \"deviceid\" : \"1000113837\", "
+                  "\"apikey\" : \"111111111-1111-1111-1111-111111111111\"\n}");
         QString contLength = QString("Content-Length: %1\r\n\r\n").arg(dataAck.length());
         //qDebug() << "ans --------";
         //qDebug() << "Content-Type: application/json\r\n";
         //qDebug() << qPrintable(contLength);
         //qDebug() << dataAck;
-        sslSock->write("HTTP/1.1 200 OK\r\n");
-        sslSock->write("Server: openresty\r\n");
-        sslSock->write("Content-Type: application/json\r\n");
-        sslSock->write(qPrintable(contLength));
-        sslSock->write("Connection: keep-alive\r\n");
+        //sslSock->write("HTTP/1.1 200 OK\r\n");
+        //sslSock->write("Server: openresty\r\n");
+        //sslSock->write("Content-Type: application/json\r\n");
+        //sslSock->write(qPrintable(contLength));
+        //sslSock->write("Connection: keep-alive\r\n");
+
+        dataAck = "HTTP/1.1 200 OK\r\n"
+               //   "Server: openresty\r\n"
+               //   "Date: Mon, 15 May 2017 01:26:00 GMT\r\n"
+                  "Content-Type: application/json\r\n"
+                  "Content-Length: 58\r\n"
+                  "Connection: keep-alive\r\n\r\n"
+                  "{"
+                  "\"error\":0,"
+                  "\"reason\":\"ok\","
+                  "\"IP\":\"192.168.0.105\","
+                  "\"port\":9001"
+                  "}";
+        qDebug() << dataAck << dataAck.length();
         sslSock->write(dataAck);
+    }
+    else if(msg.startsWith("GET /api/ws HTTP/1.1\r\n")){
+        //qDebug() << "handleSocketReadyRead" << ba;
+        qDebug() << "Switching Protocols";
+        QByteArray dataAck = "HTTP/1.1 101 Switching Protocols\r\n"
+                             "Upgrade: websocket\r\n"
+                             "Connection: Upgrade\r\n"
+                             "Sec-WebSocket-Accept: q1/L5gx6qdQ7y3UWgO/TXXXXXXA=\r\n";
+        //qDebug() << dataAck << dataAck.length();
+        sslSock->write(dataAck);
+    }
+    else if(ba.startsWith("\x81\xFE\x00\xBA\x00\x00\x00\x00")){
+    //else if(msg.startsWith("\x81\xFE\x00\xBA\x00\x00\x00\x00")){
+        qDebug() << "register" ;//<< ba;
+
+        int ind = ba.indexOf("{");
+        ba = ba.mid(ind);
+        QJsonDocument itemDoc = QJsonDocument::fromJson(ba);
+        QJsonObject itemObject = itemDoc.object();
+        qDebug()<<itemObject;
+        QByteArray dataAck;
+        dataAck.append(0x81);
+        dataAck.append(0x54);
+               dataAck.append( "{"
+                             "\"error\":0,"
+                             "\"deviceid\":\"1000113837\","
+                             "\"apikey\":\"111111111-1111-1111-1111-111111111111\""
+                             "}");
+
+        //qDebug() << dataAck;
+        sslSock->write(dataAck);
+
+    }
+    else if(ba.startsWith("\x81\xf3\x00\x00\x00\x00")){
+        qDebug() << "date";
+        //qDebug() << "handleSocketReadyRead" << ba;
+        int ind = ba.indexOf("{");
+        ba = ba.mid(ind);
+        QJsonDocument itemDoc = QJsonDocument::fromJson(ba);
+        QJsonObject itemObject = itemDoc.object();
+        //qDebug()<<itemObject;
+        QByteArray dataAck;
+        dataAck.append(0x81);
+        dataAck.append(0x75);
+               dataAck.append("{"
+                              "\"error\":0,"
+                              "\"deviceid\":\"1000113837\","
+                              "\"apikey\":\"111111111-1111-1111-1111-111111111111\","
+                              "\"date\":\"2017-05-15T01:26:01.498Z\""
+                              "}");
+
+        //qDebug() << dataAck;
+        sslSock->write(dataAck);
+
+    }
+    else if(ba.startsWith("\x89\x80\x00\x00\x00\x00")){
+        qDebug() << "PING-PONG";
+        QByteArray dataAck;
+        dataAck.append((char)0x8A);
+        dataAck.append((char)0x00);
+
+        dataAck.append((char)0x00);
+        dataAck.append((char)0x00);
+        dataAck.append((char)0x00);
+        dataAck.append((char)0x00);
+        sslSock->write(dataAck);
+    }
+    else{
+        qDebug() << "handleSocketReadyRead" << ba;
     }
 
 }
