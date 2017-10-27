@@ -309,7 +309,7 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
         }
     }
     else if(ba[0] == 0x89){
-        qDebug() << s->peerAddress() << "PING-PONG";
+        qDebug() << s->peerAddress() << "PING-PONG" << QTime::currentTime().toString("mm:ss:zzz");
         QByteArray dataAck;
         dataAck.append((char)0x8A);
         dataAck.append((char)0x00);
