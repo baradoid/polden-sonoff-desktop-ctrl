@@ -23,7 +23,7 @@ void SslServer::incomingConnection(qintptr socketDescriptor)
     QSslSocket *sslSock = new QSslSocket;
     //QWebSocket *sslSock = new QWebSocket();
     if (sslSock->setSocketDescriptor(socketDescriptor)) {
-        qDebug() << "setSocketDescriptor ok";
+        //qDebug() << "setSocketDescriptor ok";
 
 
 //        QSslConfiguration sslConfiguration;
@@ -56,7 +56,7 @@ void SslServer::incomingConnection(qintptr socketDescriptor)
 //        sslSock->startServerEncryption();
 
     } else {
-        qDebug() << "setSocketDescriptor false";
+        qDebug() << "setSocketDescriptor fail";
         delete sslSock;
     }
 

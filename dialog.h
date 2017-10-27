@@ -10,6 +10,7 @@
 #include <QTcpServer>
 #include <QWebSocketServer>
 #include <sslserver.h>
+#include <QMap>
 namespace Ui {
 class Dialog;
 }
@@ -38,15 +39,18 @@ private:
     //QWebSocketServer *m_pWebSocketServer;
     QTcpServer *tcpServ;
     QTcpSocket *tcpSock;
-    QSslSocket *sslSock;
+    QList<QSslSocket*> sslSockList;
     SslServer *sslServ;
 
     QList<QWebSocket *> m_clients;
 
+    QMap<QSslSocket*, QString> devIdMap;
 
     //QWebSocket m_deb_client;
 
     //QSslSocket *m_sslSocket;
+    //QMap<QSslSocket*, >
+    void wsSendJson(QTcpSocket *s, QJsonObject);
 
 
 private slots:
@@ -70,20 +74,22 @@ private slots:
     void on_pushButtonGetReq_clicked();
     void handleQNmFinished(QNetworkReply*);
     void handleSSLError(QNetworkReply*,QList<QSslError>);
-    void handleSSLError(QList<QSslError>);
+    void handleSSLError(QSslSocket*, QList<QSslError>);
+    void handleSslSocketDisconnected(QSslSocket*);
+    void handleSslSocketReadyRead(QSslSocket*);
 
-    void handleSocketError(QAbstractSocket::SocketError);
+    void handleSocketError(QSslSocket*, QAbstractSocket::SocketError);
     void handleSocketReadyRead();
-    void handleSslSocketReadyRead();
     void handleSocketDisconnected();
 
     void handleOriginAuthenticationRequired(QWebSocketCorsAuthenticator *authenticator);
     void handlePeerVerifyError(const QSslError &error);
     void handleServerError(QWebSocketProtocol::CloseCode closeCode);
-    void handleEncrypted();
+    void handleEncrypted(QSslSocket*);
 
     void handleAcceptError(QAbstractSocket::SocketError);
 
+    void on_pushButton_clicked();
 };
 
 #endif // DIALOG_H

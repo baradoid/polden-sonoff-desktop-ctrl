@@ -28,8 +28,11 @@ Dialog::Dialog(QWidget *parent) :
 
 //    QFile certFile(QStringLiteral("ssl/localhost.cert"));
 //    QFile keyFile(QStringLiteral("ssl/localhost.key"));
-    qDebug() << certFile.open(QIODevice::ReadOnly);
-    qDebug() << keyFile.open(QIODevice::ReadOnly);
+    if(certFile.open(QIODevice::ReadOnly) == false)
+        qDebug() << "certFile error";
+    if(keyFile.open(QIODevice::ReadOnly) == false)
+        qDebug() << "keyFile error";
+
 
     QSslCertificate certificate(&certFile, QSsl::Pem);
     QSslKey sslKey(&keyFile, QSsl::Rsa, QSsl::Pem);
@@ -147,9 +150,9 @@ void Dialog::handleSSLError(QNetworkReply*,QList<QSslError>)
     qDebug() << "handleSSLError";
 }
 
-void Dialog::handleSSLError(QList<QSslError>)
+void Dialog::handleSSLError(QSslSocket* s, QList<QSslError> erl)
 {
-    qDebug() << "handleSSLError" <<  sslSock->sslErrors();
+    qDebug() << "handleSSLError" << s->peerAddress() <<  s->sslErrors() << erl;
 }
 
 void Dialog::onNewConnection()
@@ -177,27 +180,24 @@ void Dialog::handleWSNwConn()
 
 void Dialog::onNewSslConnection()
 {
-    qDebug() << "onNewSSLConnection";
-    sslSock = (QSslSocket*)sslServ->nextPendingConnection();
 
-    connect(sslSock, SIGNAL(encrypted()),
-            this, SLOT(handleEncrypted()));
-    connect(sslSock, SIGNAL(sslErrors(QList<QSslError>)),
-            this, SLOT(handleSSLError(QList<QSslError>)));
-    connect(sslSock, SIGNAL(readyRead()),
-            this, SLOT(handleSslSocketReadyRead()));
-    connect(sslSock, SIGNAL(error(QAbstractSocket::SocketError)),
-            this, SLOT(handleSocketError(QAbstractSocket::SocketError)));
-    connect(sslSock, SIGNAL(disconnected()),
-            this, SLOT(handleSocketDisconnected()));
+    QSslSocket *sslSock = (QSslSocket*)sslServ->nextPendingConnection();
+
+    qDebug() << sslSock->peerAddress() << "onNewSSLConnection";
+    sslSockList.append(sslSock);
+    connect(sslSock, &QSslSocket::encrypted, [=](){ handleEncrypted(sslSock);});
+    //connect(sslSock, &QSslSocket::sslErrors, [this, sslSock](const QList<QSslError> &erl){ handleSSLError(sslSock, erl);} );
+    connect(sslSock, &QSslSocket::readyRead, [=](){ handleSslSocketReadyRead(sslSock);} );
+    //connect(sslSock, &QSslSocket::error, [=](QAbstractSocket::SocketError serr){ handleSocketError(sslSock, serr);} );
+    connect(sslSock, &QSslSocket::disconnected, [=](){ handleSslSocketDisconnected(sslSock);} );
 
     sslSock->setSslConfiguration(sslConfiguration);
     sslSock->startServerEncryption();
 }
 
-void Dialog::handleSocketError(QAbstractSocket::SocketError err)
+void Dialog::handleSocketError(QSslSocket* s, QAbstractSocket::SocketError err)
 {
-    qDebug() << "handleSocketError" << err << sslSock->sslErrors();
+    //qDebug() << "handleSocketError" << err << sslSock->sslErrors();
 //    qDebug() << sslSock->sslErrors();
 //    sslSock->ignoreSslErrors();
 
@@ -218,14 +218,14 @@ void Dialog::handlePeerVerifyError(const QSslError &error)
     qDebug() << "handlePeerVerifyError";
 }
 
-void Dialog::handleSslSocketReadyRead()
+void Dialog::handleSslSocketReadyRead(QSslSocket* s)
 {
-    QByteArray ba = sslSock->readAll();
+    QByteArray ba = s->readAll();
 
     //qDebug() << "handleSocketReadyRead" ;
     QString msg(ba);
     if(msg.startsWith("POST /dispatch/device HTTP/1.1\r\n")){
-        qDebug() << "dispatch/device";
+        qDebug() << s->peerAddress()  << "dispatch/device";
         //qDebug() << "handleSocketReadyRead" << ba;
         msg.remove("POST /dispatch/device HTTP/1.1\r\n");
         int ind = msg.indexOf("\r\n");
@@ -238,7 +238,10 @@ void Dialog::handleSslSocketReadyRead()
 
         QJsonDocument itemDoc = QJsonDocument::fromJson(msg.toLatin1());
         QJsonObject itemObject = itemDoc.object();
-        //qDebug()<<itemObject;
+        qDebug()<< s->peerAddress()<<itemObject;
+        qDebug()<< s->peerAddress()<< itemObject["deviceid"] << itemObject["deviceid"].toString();
+        devIdMap[s] = itemObject["deviceid"].toString();
+        qDebug() << devIdMap;
 
         QJsonObject json;
         json.insert("error", 0);
@@ -248,97 +251,113 @@ void Dialog::handleSslSocketReadyRead()
         QByteArray data = QJsonDocument(json).toJson().data();
         QByteArray postDataSize = QByteArray::number(data.size());
 
-        QJsonObject jsonAck;
-        jsonAck.insert("error", 0);
-        jsonAck.insert("deviceid", "1000113837");
-        jsonAck.insert("apikey", "111111111-1111-1111-1111-111111111111");
-        QByteArray dataAck = QJsonDocument(jsonAck).toJson().data();
-        //QByteArray postDataSize = QByteArray::number(dataAck.size());
+        QByteArray dataAck;
+//        QJsonObject jsonAck;
+//        jsonAck.insert("error", 0);
+//        jsonAck.insert("deviceid", "1000113837");
+//        jsonAck.insert("apikey", "111111111-1111-1111-1111-111111111111");
+//        QByteArray dataAck = QJsonDocument(jsonAck).toJson().data();
+//        //QByteArray postDataSize = QByteArray::number(dataAck.size());
 
-        dataAck = QByteArray("{\n\"error\" : 0, \"deviceid\" : \"1000113837\", "
-                  "\"apikey\" : \"111111111-1111-1111-1111-111111111111\"\n}");
-        QString contLength = QString("Content-Length: %1\r\n\r\n").arg(dataAck.length());
-        //qDebug() << "ans --------";
-        //qDebug() << "Content-Type: application/json\r\n";
-        //qDebug() << qPrintable(contLength);
-        //qDebug() << dataAck;
-        //sslSock->write("HTTP/1.1 200 OK\r\n");
-        //sslSock->write("Server: openresty\r\n");
-        //sslSock->write("Content-Type: application/json\r\n");
-        //sslSock->write(qPrintable(contLength));
-        //sslSock->write("Connection: keep-alive\r\n");
+//        dataAck = QByteArray("{\n\"error\" : 0, \"deviceid\" : \"1000113837\", "
+//                  "\"apikey\" : \"111111111-1111-1111-1111-111111111111\"\n}");
+//        QString contLength = QString("Content-Length: %1\r\n\r\n").arg(dataAck.length());
+//        //qDebug() << "ans --------";
+//        //qDebug() << "Content-Type: application/json\r\n";
+//        //qDebug() << qPrintable(contLength);
+//        //qDebug() << dataAck;
+//        //sslSock->write("HTTP/1.1 200 OK\r\n");
+//        //sslSock->write("Server: openresty\r\n");
+//        //sslSock->write("Content-Type: application/json\r\n");
+//        //sslSock->write(qPrintable(contLength));
+//        //sslSock->write("Connection: keep-alive\r\n");
+
+        qDebug() << data <<data.length();
+//        dataAck = "HTTP/1.1 200 OK\r\n"
+//               //   "Server: openresty\r\n"
+//               //   "Date: Mon, 15 May 2017 01:26:00 GMT\r\n"
+//                  "Content-Type: application/json\r\n"
+//                  "Content-Length: 58\r\n"
+//                  "Connection: keep-alive\r\n\r\n"
+//                  "{"
+//                  "\"error\":0,"
+//                  "\"reason\":\"ok\","
+//                  "\"IP\":\"192.168.0.105\","
+//                  "\"port\":9001"
+//                  "}";
 
         dataAck = "HTTP/1.1 200 OK\r\n"
                //   "Server: openresty\r\n"
                //   "Date: Mon, 15 May 2017 01:26:00 GMT\r\n"
                   "Content-Type: application/json\r\n"
-                  "Content-Length: 58\r\n"
-                  "Connection: keep-alive\r\n\r\n"
-                  "{"
-                  "\"error\":0,"
-                  "\"reason\":\"ok\","
-                  "\"IP\":\"192.168.0.105\","
-                  "\"port\":9001"
-                  "}";
-        qDebug() << dataAck << dataAck.length();
-        sslSock->write(dataAck);
+                  "Content-Length: 84\r\n"
+                  "Connection: keep-alive\r\n\r\n";
+        dataAck += data;
+
+        //qDebug() << dataAck << dataAck.length();
+        s->write(dataAck);
     }
     else if(msg.startsWith("GET /api/ws HTTP/1.1\r\n")){
         //qDebug() << "handleSocketReadyRead" << ba;
-        qDebug() << "Switching Protocols";
+        qDebug() << s->peerAddress()  << "Switching Protocols";
         QByteArray dataAck = "HTTP/1.1 101 Switching Protocols\r\n"
                              "Upgrade: websocket\r\n"
                              "Connection: Upgrade\r\n"
                              "Sec-WebSocket-Accept: q1/L5gx6qdQ7y3UWgO/TXXXXXXA=\r\n";
         //qDebug() << dataAck << dataAck.length();
-        sslSock->write(dataAck);
+        s->write(dataAck);
     }
-    else if(ba.startsWith("\x81\xFE\x00\xBA\x00\x00\x00\x00")){
-    //else if(msg.startsWith("\x81\xFE\x00\xBA\x00\x00\x00\x00")){
-        qDebug() << "register" ;//<< ba;
+    else if(ba[0] == 0x81){  //"\x81\xFE\x00\xBA\x00\x00\x00\x00"
 
         int ind = ba.indexOf("{");
         ba = ba.mid(ind);
         QJsonDocument itemDoc = QJsonDocument::fromJson(ba);
-        QJsonObject itemObject = itemDoc.object();
-        qDebug()<<itemObject;
-        QByteArray dataAck;
-        dataAck.append(0x81);
-        dataAck.append(0x54);
-               dataAck.append( "{"
-                             "\"error\":0,"
-                             "\"deviceid\":\"1000113837\","
-                             "\"apikey\":\"111111111-1111-1111-1111-111111111111\""
-                             "}");
+        QJsonObject io = itemDoc.object();
+        //qDebug() << s->peerAddress() <<itemObject;
 
-        //qDebug() << dataAck;
-        sslSock->write(dataAck);
+        if(io["action"].toString().compare("update") == 0){
+            qDebug() << s->peerAddress() << "update" << qPrintable(io["params"].toObject()["switch"].toString());
+            devIdMap[s] = io["deviceid"].toString();
 
+            QJsonObject json;
+            json["error"] = 0;
+            json["deviceid"] = devIdMap[s];
+            json["apikey"] = "111111111-1111-1111-1111-111111111111";
+            wsSendJson(s, json);
+        }
+        else if(io["action"].toString().compare("register") == 0){
+            qDebug() << s->peerAddress() << "register"; //<< qPrintable(itemObject["params"].toObject()["switch"].toString());
+            devIdMap[s] = io["deviceid"].toString();
+            QJsonObject json;
+            json["error"] = 0;
+            json["deviceid"] = devIdMap[s];
+            json["apikey"] = "111111111-1111-1111-1111-111111111111";
+            wsSendJson(s, json);
+        }
+        else if(io["action"].toString().compare("date") == 0){
+            qDebug() << s->peerAddress() << "date";
+            QJsonObject json;
+            json["error"] = 0;
+            json["deviceid"] = devIdMap[s];
+            json["apikey"] = "111111111-1111-1111-1111-111111111111";
+            json["date"] = "2017-05-15T01:26:01.498Z";
+            wsSendJson(s, json);
+        }
+        else if(io["action"].toString().compare("query") == 0){
+            qDebug() << s->peerAddress() << "date";
+            QJsonObject json;
+            json["error"] = 0;
+            json["deviceid"] = devIdMap[s];
+            json["apikey"] = "111111111-1111-1111-1111-111111111111";
+            json["params"] = 0;
+            wsSendJson(s, json);
+        }
+        else{
+            qDebug() << s->peerAddress()  << "unknown" << ba;
+        }
     }
-    else if(ba.startsWith("\x81\xf3\x00\x00\x00\x00")){
-        qDebug() << "date";
-        //qDebug() << "handleSocketReadyRead" << ba;
-        int ind = ba.indexOf("{");
-        ba = ba.mid(ind);
-        QJsonDocument itemDoc = QJsonDocument::fromJson(ba);
-        QJsonObject itemObject = itemDoc.object();
-        //qDebug()<<itemObject;
-        QByteArray dataAck;
-        dataAck.append(0x81);
-        dataAck.append(0x75);
-               dataAck.append("{"
-                              "\"error\":0,"
-                              "\"deviceid\":\"1000113837\","
-                              "\"apikey\":\"111111111-1111-1111-1111-111111111111\","
-                              "\"date\":\"2017-05-15T01:26:01.498Z\""
-                              "}");
-
-        //qDebug() << dataAck;
-        sslSock->write(dataAck);
-
-    }
-    else if(ba.startsWith("\x89\x80\x00\x00\x00\x00")){
-        qDebug() << "PING-PONG";
+    else if(ba[0] == 0x89){
+        qDebug() << s->peerAddress() << "PING-PONG";
         QByteArray dataAck;
         dataAck.append((char)0x8A);
         dataAck.append((char)0x00);
@@ -347,11 +366,34 @@ void Dialog::handleSslSocketReadyRead()
         dataAck.append((char)0x00);
         dataAck.append((char)0x00);
         dataAck.append((char)0x00);
-        sslSock->write(dataAck);
+        s->write(dataAck);
     }
     else{
-        qDebug() << "handleSocketReadyRead" << ba;
+        qDebug() << s->peerAddress()  << "handleSocketReadyRead" << ba;
     }
+
+}
+
+void Dialog::wsSendJson(QTcpSocket *s, QJsonObject json)
+{
+    //\x81\xFE\x00\xBA\x00\x00\x00\x00
+    QByteArray jsonBa = QJsonDocument(json).toJson().data();
+
+    QByteArray dataAck;
+    dataAck.append(0x81);
+    if(jsonBa.size() < 126){
+        dataAck.append((char)(jsonBa.size()));
+    }
+    else{
+        quint16 jsonBaSize = jsonBa.size();
+        dataAck.append((char)0x7e);
+        dataAck.append((char)((jsonBaSize>>8)&0xff));
+        dataAck.append((char)(jsonBaSize&0xff));
+    }
+    dataAck += jsonBa;
+
+    //qDebug() << dataAck;
+    s->write(dataAck);
 
 }
 
@@ -403,9 +445,14 @@ void Dialog::handleSocketDisconnected()
     qDebug() << "handleSocketDisconnected";
 }
 
-void Dialog::handleEncrypted()
+void Dialog::handleSslSocketDisconnected(QSslSocket* s)
 {
-    qDebug() << "handleEncrypted";
+    qDebug() << s->peerAddress() << "sslSocketDisconnected";
+}
+
+void Dialog::handleEncrypted(QSslSocket* s)
+{
+    qDebug() << s->peerAddress() << "handleEncrypted" ;
 }
 
 void Dialog::onWebSocketConnected()
@@ -484,5 +531,29 @@ void Dialog::on_pushButtonGetReq_clicked()
 void Dialog::handleAcceptError(QAbstractSocket::SocketError)
 {
     qDebug() << "handleAcceptError";
+
+}
+
+void Dialog::on_pushButton_clicked()
+{
+    QJsonObject paramJson;
+    paramJson["switch"] = "on";
+    foreach (QSslSocket *s, devIdMap.keys()) {
+        QJsonObject json;
+        json["action"] = "update";
+        json["deviceid"] = devIdMap[s];
+        json["apikey"] = "111111111-1111-1111-1111-111111111111";
+        json["userAgent"] = "app";
+        json["sequence"] = "1494806715179";
+        json["ts"] = 0;
+        json["from"] = "app";
+
+        json["params"] = paramJson;
+
+        qDebug() << QJsonDocument(json).toJson().data();
+        wsSendJson(s, json);
+    }
+
+
 
 }
