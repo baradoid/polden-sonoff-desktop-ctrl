@@ -238,10 +238,10 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
 
         QJsonDocument itemDoc = QJsonDocument::fromJson(msg.toLatin1());
         QJsonObject itemObject = itemDoc.object();
-        qDebug()<< s->peerAddress()<<itemObject;
-        qDebug()<< s->peerAddress()<< itemObject["deviceid"] << itemObject["deviceid"].toString();
+        //qDebug()<< s->peerAddress()<<itemObject;
+        //qDebug()<< s->peerAddress()<< itemObject["deviceid"] << itemObject["deviceid"].toString();
         devIdMap[s] = itemObject["deviceid"].toString();
-        qDebug() << devIdMap;
+        //qDebug() << devIdMap;
 
         QJsonObject json;
         json.insert("error", 0);
@@ -272,7 +272,7 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
 //        //sslSock->write(qPrintable(contLength));
 //        //sslSock->write("Connection: keep-alive\r\n");
 
-        qDebug() << data <<data.length();
+//        qDebug() << data <<data.length();
 //        dataAck = "HTTP/1.1 200 OK\r\n"
 //               //   "Server: openresty\r\n"
 //               //   "Date: Mon, 15 May 2017 01:26:00 GMT\r\n"
@@ -315,42 +315,34 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
         QJsonObject io = itemDoc.object();
         //qDebug() << s->peerAddress() <<itemObject;
 
-        if(io["action"].toString().compare("update") == 0){
-            qDebug() << s->peerAddress() << "update" << qPrintable(io["params"].toObject()["switch"].toString());
-            devIdMap[s] = io["deviceid"].toString();
+        devIdMap[s] = io["deviceid"].toString();
+        QJsonObject jsonAck;
+        jsonAck["error"] = 0;
+        jsonAck["deviceid"] = devIdMap[s];
+        jsonAck["apikey"] = "111111111-1111-1111-1111-111111111111";
 
-            QJsonObject json;
-            json["error"] = 0;
-            json["deviceid"] = devIdMap[s];
-            json["apikey"] = "111111111-1111-1111-1111-111111111111";
-            wsSendJson(s, json);
+        if(io.contains("action")){
+            if(io["action"].toString().compare("update") == 0){
+                qDebug() << s->peerAddress() << "update" << qPrintable(io["params"].toObject()["switch"].toString());
+                wsSendJson(s, jsonAck);
+            }
+            else if(io["action"].toString().compare("register") == 0){
+                qDebug() << s->peerAddress() << "register"; //<< qPrintable(itemObject["params"].toObject()["switch"].toString());
+                wsSendJson(s, jsonAck);
+            }
+            else if(io["action"].toString().compare("date") == 0){
+                qDebug() << s->peerAddress() << "date";
+                jsonAck["date"] = "2017-05-15T01:26:01.498Z";
+                wsSendJson(s, jsonAck);
+            }
+            else if(io["action"].toString().compare("query") == 0){
+                qDebug() << s->peerAddress() << "query";
+                jsonAck["params"] = 0;
+                wsSendJson(s, jsonAck);
+            }
         }
-        else if(io["action"].toString().compare("register") == 0){
-            qDebug() << s->peerAddress() << "register"; //<< qPrintable(itemObject["params"].toObject()["switch"].toString());
-            devIdMap[s] = io["deviceid"].toString();
-            QJsonObject json;
-            json["error"] = 0;
-            json["deviceid"] = devIdMap[s];
-            json["apikey"] = "111111111-1111-1111-1111-111111111111";
-            wsSendJson(s, json);
-        }
-        else if(io["action"].toString().compare("date") == 0){
-            qDebug() << s->peerAddress() << "date";
-            QJsonObject json;
-            json["error"] = 0;
-            json["deviceid"] = devIdMap[s];
-            json["apikey"] = "111111111-1111-1111-1111-111111111111";
-            json["date"] = "2017-05-15T01:26:01.498Z";
-            wsSendJson(s, json);
-        }
-        else if(io["action"].toString().compare("query") == 0){
-            qDebug() << s->peerAddress() << "date";
-            QJsonObject json;
-            json["error"] = 0;
-            json["deviceid"] = devIdMap[s];
-            json["apikey"] = "111111111-1111-1111-1111-111111111111";
-            json["params"] = 0;
-            wsSendJson(s, json);
+        else if(io.contains("error")){
+            qDebug() << s->peerAddress()  << "respond:" << io["error"].toString().toInt() << "seq:" << io["sequence"].toString();
         }
         else{
             qDebug() << s->peerAddress()  << "unknown" << ba;
@@ -534,26 +526,39 @@ void Dialog::handleAcceptError(QAbstractSocket::SocketError)
 
 }
 
-void Dialog::on_pushButton_clicked()
+void Dialog::turnRele(QSslSocket* s, bool bEna)
 {
     QJsonObject paramJson;
-    paramJson["switch"] = "on";
+    if(bEna)
+        paramJson["switch"] = "on";
+    else
+        paramJson["switch"] = "off";
+
+    QJsonObject json;
+    json["action"] = "update";
+    json["deviceid"] = devIdMap[s];
+    json["apikey"] = "111111111-1111-1111-1111-111111111111";
+    json["userAgent"] = "app";
+    json["sequence"] = "1494806715179";
+    json["ts"] = 0;
+    json["from"] = "app";
+
+    json["params"] = paramJson;
+
+    //qDebug() << QJsonDocument(json).toJson().data();
+    wsSendJson(s, json);
+}
+
+void Dialog::on_pushButton_clicked()
+{
     foreach (QSslSocket *s, devIdMap.keys()) {
-        QJsonObject json;
-        json["action"] = "update";
-        json["deviceid"] = devIdMap[s];
-        json["apikey"] = "111111111-1111-1111-1111-111111111111";
-        json["userAgent"] = "app";
-        json["sequence"] = "1494806715179";
-        json["ts"] = 0;
-        json["from"] = "app";
-
-        json["params"] = paramJson;
-
-        qDebug() << QJsonDocument(json).toJson().data();
-        wsSendJson(s, json);
+        turnRele(s, true);
     }
+}
 
-
-
+void Dialog::on_pushButton_2_clicked()
+{
+    foreach (QSslSocket *s, devIdMap.keys()) {
+        turnRele(s, false);
+    }
 }

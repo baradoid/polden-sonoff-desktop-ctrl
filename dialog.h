@@ -52,6 +52,7 @@ private:
     //QMap<QSslSocket*, >
     void wsSendJson(QTcpSocket *s, QJsonObject);
 
+    void turnRele(QSslSocket*,bool);
 
 private slots:
     void handleTimer();
@@ -90,6 +91,7 @@ private slots:
     void handleAcceptError(QAbstractSocket::SocketError);
 
     void on_pushButton_clicked();
+    void on_pushButton_2_clicked();
 };
 
 #endif // DIALOG_H
