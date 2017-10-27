@@ -221,8 +221,6 @@ void Dialog::handlePeerVerifyError(const QSslError &error)
 void Dialog::handleSslSocketReadyRead(QSslSocket* s)
 {
     QByteArray ba = s->readAll();
-
-    //qDebug() << "handleSocketReadyRead" ;
     QString msg(ba);
     if(msg.startsWith("POST /dispatch/device HTTP/1.1\r\n")){
         qDebug() << s->peerAddress()  << "dispatch/device";
@@ -249,43 +247,7 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
         json.insert("IP", "192.168.0.105");
         json.insert("port", PORT);
         QByteArray data = QJsonDocument(json).toJson().data();
-        QByteArray postDataSize = QByteArray::number(data.size());
-
         QByteArray dataAck;
-//        QJsonObject jsonAck;
-//        jsonAck.insert("error", 0);
-//        jsonAck.insert("deviceid", "1000113837");
-//        jsonAck.insert("apikey", "111111111-1111-1111-1111-111111111111");
-//        QByteArray dataAck = QJsonDocument(jsonAck).toJson().data();
-//        //QByteArray postDataSize = QByteArray::number(dataAck.size());
-
-//        dataAck = QByteArray("{\n\"error\" : 0, \"deviceid\" : \"1000113837\", "
-//                  "\"apikey\" : \"111111111-1111-1111-1111-111111111111\"\n}");
-//        QString contLength = QString("Content-Length: %1\r\n\r\n").arg(dataAck.length());
-//        //qDebug() << "ans --------";
-//        //qDebug() << "Content-Type: application/json\r\n";
-//        //qDebug() << qPrintable(contLength);
-//        //qDebug() << dataAck;
-//        //sslSock->write("HTTP/1.1 200 OK\r\n");
-//        //sslSock->write("Server: openresty\r\n");
-//        //sslSock->write("Content-Type: application/json\r\n");
-//        //sslSock->write(qPrintable(contLength));
-//        //sslSock->write("Connection: keep-alive\r\n");
-
-//        qDebug() << data <<data.length();
-//        dataAck = "HTTP/1.1 200 OK\r\n"
-//               //   "Server: openresty\r\n"
-//               //   "Date: Mon, 15 May 2017 01:26:00 GMT\r\n"
-//                  "Content-Type: application/json\r\n"
-//                  "Content-Length: 58\r\n"
-//                  "Connection: keep-alive\r\n\r\n"
-//                  "{"
-//                  "\"error\":0,"
-//                  "\"reason\":\"ok\","
-//                  "\"IP\":\"192.168.0.105\","
-//                  "\"port\":9001"
-//                  "}";
-
         dataAck = "HTTP/1.1 200 OK\r\n"
                //   "Server: openresty\r\n"
                //   "Date: Mon, 15 May 2017 01:26:00 GMT\r\n"
@@ -294,7 +256,6 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
                   "Connection: keep-alive\r\n\r\n";
         dataAck += data;
 
-        //qDebug() << dataAck << dataAck.length();
         s->write(dataAck);
     }
     else if(msg.startsWith("GET /api/ws HTTP/1.1\r\n")){
@@ -307,8 +268,7 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
         //qDebug() << dataAck << dataAck.length();
         s->write(dataAck);
     }
-    else if(ba[0] == 0x81){  //"\x81\xFE\x00\xBA\x00\x00\x00\x00"
-
+    else if(ba[0] == 0x81){
         int ind = ba.indexOf("{");
         ba = ba.mid(ind);
         QJsonDocument itemDoc = QJsonDocument::fromJson(ba);
@@ -342,7 +302,7 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
             }
         }
         else if(io.contains("error")){
-            qDebug() << s->peerAddress()  << "respond:" << io["error"].toString().toInt() << "seq:" << io["sequence"].toString();
+            qDebug() << s->peerAddress()  << "respond:" << io["error"].toString().toInt() /*<< "seq:" << io["sequence"].toString()*/;
         }
         else{
             qDebug() << s->peerAddress()  << "unknown" << ba;
