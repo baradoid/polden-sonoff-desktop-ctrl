@@ -17,7 +17,15 @@ class Dialog;
 QT_FORWARD_DECLARE_CLASS(QWebSocketServer)
 QT_FORWARD_DECLARE_CLASS(QWebSocket)
 
-#define PORT 9001
+typedef enum {
+    unknown,
+    ITAGZ1GL, //1ch basic
+    PSFA04GL, //4ch
+    PSAB01GL
+} TDevTypes;
+
+#define PORT1 9001
+#define PORT2 9002
 class Dialog : public QDialog
 {
     Q_OBJECT
@@ -45,6 +53,7 @@ private:
     QList<QWebSocket *> m_clients;
 
     QMap<QSslSocket*, QString> devIdMap;
+    QMap<QSslSocket*, TDevTypes> devTypeMap;
 
     //QWebSocket m_deb_client;
 
@@ -53,6 +62,7 @@ private:
     void wsSendJson(QTcpSocket *s, QJsonObject);
 
     void turnRele(QSslSocket*,bool);
+    void sendApReq(int port);
 
 private slots:
     void handleTimer();
@@ -62,8 +72,7 @@ private slots:
 
     void handleReplyError(QNetworkReply::NetworkError);
 
-    void onNewConnection();
-    void onNewSslConnection();
+    void handleNewSslConnection();
 
     void handleWSNwConn();
 
@@ -92,6 +101,9 @@ private slots:
 
     void on_pushButton_clicked();
     void on_pushButton_2_clicked();
+    void on_pushButtonSendReg2_clicked();
+
+    void handleNewTcpConnection();
 };
 
 #endif // DIALOG_H

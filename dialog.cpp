@@ -42,22 +42,23 @@ Dialog::Dialog(QWidget *parent) :
     //sslConfiguration.setPeerVerifyMode(QSslSocket::VerifyNone);
     sslConfiguration.setLocalCertificate(certificate);
     sslConfiguration.setPrivateKey(sslKey);
-    sslConfiguration.setProtocol(QSsl::AnyProtocol);
+    //sslConfiguration.setProtocol(QSsl::AnyProtocol);
+    //sslConfiguration.setProtocol(QSsl::TlsV1_2);
 
 
     sslServ = new SslServer(this);
-    if (sslServ->listen(QHostAddress::Any, PORT)) {
-        qDebug() << "Echoserver listening on port" << PORT;
-        connect(sslServ, SIGNAL(newConnection()),  this, SLOT(onNewSslConnection()));
+    if (sslServ->listen(QHostAddress::Any, PORT1)) {
+        qDebug() << "listening on port" << PORT1;
+        connect(sslServ, SIGNAL(newConnection()),  this, SLOT(handleNewSslConnection()));
         //connect(m_pWebSocketServer, &QWebSocketServer::closed, this, &EchoServer::closed);
     }
 
-//    tcpServ = new QTcpServer(this);
-//    if (tcpServ->listen(QHostAddress::Any, PORT)) {
-//        qDebug() << "Echoserver listening on port" << PORT;
-//        connect(tcpServ, SIGNAL(newConnection()),  this, SLOT(onNewConnection()));
-//    //connect(m_pWebSocketServer, &QWebSocketServer::closed, this, &EchoServer::closed);
-//    }
+    tcpServ = new QTcpServer(this);
+    if (tcpServ->listen(QHostAddress::Any, PORT2)) {
+        qDebug() << "listening on port" << PORT2;
+        connect(tcpServ, SIGNAL(newConnection()),  this, SLOT(handleNewTcpConnection()));
+    //connect(m_pWebSocketServer, &QWebSocketServer::closed, this, &EchoServer::closed);
+    }
 
 //    m_pWebSocketServer = new QWebSocketServer(QStringLiteral("SSL Echo Server"),
 //                                                QWebSocketServer::SecureMode, this);
@@ -155,35 +156,34 @@ void Dialog::handleSSLError(QSslSocket* s, QList<QSslError> erl)
     qDebug() << "handleSSLError" << s->peerAddress() <<  s->sslErrors() << erl;
 }
 
-void Dialog::onNewConnection()
-{
-    tcpSock = tcpServ->nextPendingConnection();
-    //    //sslSock->ignoreSslErrors();
-    connect(tcpSock, SIGNAL(readyRead()),
-            this, SLOT(handleSocketReadyRead()));
-    connect(tcpSock, SIGNAL(error(QAbstractSocket::SocketError)),
-            this, SLOT(handleSocketError(QAbstractSocket::SocketError)));
-    connect(tcpSock, SIGNAL(disconnected()),
-            this, SLOT(handleSocketDisconnected()));
+//void Dialog::onNewConnection()
+//{
+//    tcpSock = tcpServ->nextPendingConnection();
+//    //    //sslSock->ignoreSslErrors();
+//    connect(tcpSock, SIGNAL(readyRead()),
+//            this, SLOT(handleSocketReadyRead()));
+//    connect(tcpSock, SIGNAL(error(QAbstractSocket::SocketError)),
+//            this, SLOT(handleSocketError(QAbstractSocket::SocketError)));
+//    connect(tcpSock, SIGNAL(disconnected()),
+//            this, SLOT(handleSocketDisconnected()));
 
-    //serverStatusLabel->setText(tr("Accepted connection"));
-    //tcpServer.close();
-}
+//    //serverStatusLabel->setText(tr("Accepted connection"));
+//    //tcpServer.close();
+//}
 
 void Dialog::handleWSNwConn()
 {
     //QWebSocket *ws = m_pWebSocketServer->nextPendingConnection();
 
     qDebug() << "handleWSNwConn";
-
 }
 
-void Dialog::onNewSslConnection()
+void Dialog::handleNewSslConnection()
 {
 
     QSslSocket *sslSock = (QSslSocket*)sslServ->nextPendingConnection();
 
-    qDebug() << sslSock->peerAddress() << "onNewSSLConnection";
+    qDebug() << "onNewSSLConnection" << sslSock->peerAddress();
     sslSockList.append(sslSock);
     connect(sslSock, &QSslSocket::encrypted, [=](){ handleEncrypted(sslSock);});
     //connect(sslSock, &QSslSocket::sslErrors, [this, sslSock](const QList<QSslError> &erl){ handleSSLError(sslSock, erl);} );
@@ -193,6 +193,20 @@ void Dialog::onNewSslConnection()
 
     sslSock->setSslConfiguration(sslConfiguration);
     sslSock->startServerEncryption();
+}
+
+void Dialog::handleNewTcpConnection()
+{
+    tcpSock = tcpServ->nextPendingConnection();
+    qDebug() << "handleNewTcpConnection" << tcpSock->peerAddress();
+
+    //    //sslSock->ignoreSslErrors();
+    connect(tcpSock, SIGNAL(readyRead()),
+            this, SLOT(handleSocketReadyRead()));
+    connect(tcpSock, SIGNAL(error(QAbstractSocket::SocketError)),
+            this, SLOT(handleSocketError(QAbstractSocket::SocketError)));
+    connect(tcpSock, SIGNAL(disconnected()),
+            this, SLOT(handleSocketDisconnected()));
 }
 
 void Dialog::handleSocketError(QSslSocket* s, QAbstractSocket::SocketError err)
@@ -245,7 +259,7 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
         json.insert("error", 0);
         json.insert("reason", "ok");
         json.insert("IP", "192.168.0.105");
-        json.insert("port", PORT);
+        json.insert("port", PORT1);
         QByteArray data = QJsonDocument(json).toJson().data();
         QByteArray dataAck;
         dataAck = "HTTP/1.1 200 OK\r\n"
@@ -285,9 +299,29 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
             if(io["action"].toString().compare("update") == 0){
                 qDebug() << s->peerAddress() << "update" << qPrintable(io["params"].toObject()["switch"].toString());
                 wsSendJson(s, jsonAck);
+                if(devTypeMap[s] == PSFA04GL){
+                    qDebug() << "PSFA04GL" << io["params"].toObject()["switches"];
+
+                }
             }
             else if(io["action"].toString().compare("register") == 0){
-                qDebug() << s->peerAddress() << "register"; //<< qPrintable(itemObject["params"].toObject()["switch"].toString());
+                //if()
+                devTypeMap[s] = unknown;
+                QString mdl = io["model"].toString();
+                if(mdl.compare("PSF-A04-GL") == 0){
+                    devTypeMap[s] = PSFA04GL;
+                }
+                else if(mdl.compare("ITA-GZ1-GL") == 0){
+                    devTypeMap[s] = ITAGZ1GL;
+                }
+                else if(mdl.compare("PSA-B01-GL") == 0){
+                    devTypeMap[s] = PSAB01GL;
+                }
+
+
+                qDebug() << s->peerAddress() << "register" << mdl; //<< qPrintable(itemObject["params"].toObject()["switch"].toString());
+                //qDebug() << mdl;
+                //qDebug() << s->peerAddress() << "register" << qPrintable(io["params"].toString());
                 wsSendJson(s, jsonAck);
             }
             else if(io["action"].toString().compare("date") == 0){
@@ -322,6 +356,7 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
     }
     else{
         qDebug() << s->peerAddress()  << "handleSocketReadyRead" << ba;
+
     }
 
 }
@@ -356,8 +391,6 @@ void Dialog::handleSocketReadyRead()
     QJsonObject rootObj = itemDoc.object();
 
     qDebug() << "handleSocketReadyRead" << ba;
-    qDebug() << "handleSocketReadyRead" ;
-
 
 //    QUrl url(QString("http://192.168.0.102/ap"));
 //    QNetworkRequest request(url);
@@ -399,12 +432,12 @@ void Dialog::handleSocketDisconnected()
 
 void Dialog::handleSslSocketDisconnected(QSslSocket* s)
 {
-    qDebug() << s->peerAddress() << "sslSocketDisconnected";
+    qDebug() << "sslSocketDisconnected" << s->peerAddress();
 }
 
 void Dialog::handleEncrypted(QSslSocket* s)
 {
-    qDebug() << s->peerAddress() << "handleEncrypted" ;
+    qDebug()  << "handleEncrypted" << s->peerAddress();
 }
 
 void Dialog::onWebSocketConnected()
@@ -428,7 +461,7 @@ void Dialog::handleQNmFinished(QNetworkReply* r)
     qDebug() << "handleQNmFinished";
 }
 
-void Dialog::on_pushButtonSendReg_clicked()
+void Dialog::sendApReq(int port)
 {
     QUrl url(QString("http://10.10.7.1/ap"));
     QNetworkRequest request(url);
@@ -446,7 +479,7 @@ void Dialog::on_pushButtonSendReg_clicked()
     json.insert("ssid", "TL-WR842ND");
     json.insert("password", "kkkknnnn");
     json.insert("serverName", "192.168.0.105");
-    json.insert("port", PORT);
+    json.insert("port", port);
 
     QByteArray data = QJsonDocument(json).toJson().data();
 
@@ -468,6 +501,17 @@ void Dialog::on_pushButtonSendReg_clicked()
 
     //qDebug() << "[POST]" << request.request(false).url().toString()
 }
+
+void Dialog::on_pushButtonSendReg_clicked()
+{
+    sendApReq(PORT1);
+}
+
+void Dialog::on_pushButtonSendReg2_clicked()
+{
+    sendApReq(PORT2);
+}
+
 
 void Dialog::on_pushButtonGetReq_clicked()
 {
@@ -522,3 +566,4 @@ void Dialog::on_pushButton_2_clicked()
         turnRele(s, false);
     }
 }
+
