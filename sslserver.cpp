@@ -4,7 +4,7 @@
 #include <QtNetwork/QSslKey>
 #include <QSslConfiguration>
 #include <QFile>
-#include <QWebSocket>
+//#include <QWebSocket>
 
 SslServer::SslServer(QObject *parent)
     :QTcpServer(parent)
