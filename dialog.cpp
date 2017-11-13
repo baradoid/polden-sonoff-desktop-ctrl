@@ -53,12 +53,12 @@ Dialog::Dialog(QWidget *parent) :
         //connect(m_pWebSocketServer, &QWebSocketServer::closed, this, &EchoServer::closed);
     }
 
-    tcpServ = new QTcpServer(this);
-    if (tcpServ->listen(QHostAddress::Any, PORT2)) {
-        qDebug() << "listening on port" << PORT2;
-        connect(tcpServ, SIGNAL(newConnection()),  this, SLOT(handleNewTcpConnection()));
-    //connect(m_pWebSocketServer, &QWebSocketServer::closed, this, &EchoServer::closed);
-    }
+//    tcpServ = new QTcpServer(this);
+//    if (tcpServ->listen(QHostAddress::Any, PORT2)) {
+//        qDebug() << "listening on port" << PORT2;
+//        connect(tcpServ, SIGNAL(newConnection()),  this, SLOT(handleNewTcpConnection()));
+//    //connect(m_pWebSocketServer, &QWebSocketServer::closed, this, &EchoServer::closed);
+//    }
 
 //    m_pWebSocketServer = new QWebSocketServer(QStringLiteral("SSL Echo Server"),
 //                                                QWebSocketServer::SecureMode, this);
