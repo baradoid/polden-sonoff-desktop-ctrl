@@ -24,7 +24,7 @@ Dialog::Dialog(QWidget *parent) :
 
     //int port = 9001;
     QFile certFile(QStringLiteral("ssl/server.crt"));
-    QFile keyFile(QStringLiteral("ssl/priv.key"));
+    QFile keyFile(QStringLiteral("ssl/host.key"));
 
 //    QFile certFile(QStringLiteral("ssl/localhost.cert"));
 //    QFile keyFile(QStringLiteral("ssl/localhost.key"));
@@ -463,13 +463,17 @@ void Dialog::handleQNmFinished(QNetworkReply* r)
 
 void Dialog::sendApReq(int port)
 {
+    QString ssid = ui->lineEditSSID->text();
+    QString key = ui->lineEditKey->text();
+    QString servIp = ui->lineEditServerIp->text();
+
     QUrl url(QString("http://10.10.7.1/ap"));
     QNetworkRequest request(url);
 
     QByteArray jsonString = "{\n\"version\": 4,"
-                "\"ssid\": \"tech.10\","
-                "\"password\": \"1Polden4FX\","
-                "\"serverName\": \"192.168.0.2\","
+                "\"ssid\": \"Redmi\","
+                "\"password\": \"kkkknnnn\","
+                "\"serverName\": \"192.168.43.250\","
                 "\"port\": 9001\n}";
 
     //QByteArray postDataSize = QByteArray::number(jsonString.size());
@@ -479,9 +483,12 @@ void Dialog::sendApReq(int port)
     //json.insert("ssid", "TL-WR842ND");
     //json.insert("password", "kkkknnnn");
     //json.insert("serverName", "192.168.0.105");
-    json.insert("ssid", "tech.10");
-    json.insert("password", "1Polden4FX");
-    json.insert("serverName", "192.168.0.2");
+//    json.insert("ssid", "tech.10");
+//    json.insert("password", "1Polden4FX");
+//    json.insert("serverName", "192.168.0.2");
+      json.insert("ssid", ssid);
+      json.insert("password", key);
+      json.insert("serverName", servIp);
 
     json.insert("port", PORT1);
 
