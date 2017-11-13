@@ -494,7 +494,7 @@ void Dialog::sendApReq(int port)
 
     QByteArray data = QJsonDocument(json).toJson().data();
 
-    data = jsonString;
+    //data = jsonString;
     QByteArray postDataSize = QByteArray::number(data.size());
 
 
