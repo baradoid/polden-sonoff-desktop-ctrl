@@ -1,8 +1,8 @@
 [req]
-default_bits = 4096       # Длинна ключа в битах.
+default_bits = 1024       # Длинна ключа в битах.
 default_keyfile = host.key    # Имя файла, в который будет записан закрытый ключ.
 encrypt_key = no                    # Нам не нужно шифровать закрытый ключ паролем.
-default_md = sha512              # Алгоритм хеша.
+default_md = sha256              # Алгоритм хеша.
 prompt = no                            # Не нужно запрашивать данные у пользователя, мы всё пропишем здесь.
 distinguished_name = req_distinguished_name         # Имя секции с данными (может быть любым).
 

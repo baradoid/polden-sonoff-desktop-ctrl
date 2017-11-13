@@ -23,8 +23,8 @@ Dialog::Dialog(QWidget *parent) :
     ui->setupUi(this);
 
     //int port = 9001;
-    QFile certFile(QStringLiteral("ssl/server.crt"));
-    QFile keyFile(QStringLiteral("ssl/host.key"));
+    QFile certFile(QStringLiteral("ssl/selfcert.in.crt"));
+    QFile keyFile(QStringLiteral("ssl/selfcert.in.key"));
 
 //    QFile certFile(QStringLiteral("ssl/localhost.cert"));
 //    QFile keyFile(QStringLiteral("ssl/localhost.key"));
@@ -44,7 +44,6 @@ Dialog::Dialog(QWidget *parent) :
     sslConfiguration.setPrivateKey(sslKey);
     //sslConfiguration.setProtocol(QSsl::AnyProtocol);
     //sslConfiguration.setProtocol(QSsl::TlsV1_2);
-
 
     sslServ = new SslServer(this);
     if (sslServ->listen(QHostAddress::Any, PORT1)) {
@@ -238,7 +237,7 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
     QString msg(ba);
     if(msg.startsWith("POST /dispatch/device HTTP/1.1\r\n")){
         qDebug() << s->peerAddress()  << "dispatch/device";
-        //qDebug() << "handleSocketReadyRead" << ba;
+        qDebug() << "handleSocketReadyRead" << ba;
         msg.remove("POST /dispatch/device HTTP/1.1\r\n");
         int ind = msg.indexOf("\r\n");
         msg = msg.mid(ind+2);
@@ -255,10 +254,11 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
         devIdMap[s] = itemObject["deviceid"].toString();
         //qDebug() << devIdMap;
 
+        QString servIp = ui->lineEditServerIp->text();
         QJsonObject json;
         json.insert("error", 0);
         json.insert("reason", "ok");
-        json.insert("IP", "192.168.0.105");
+        json.insert("IP", servIp);
         json.insert("port", PORT1);
         QByteArray data = QJsonDocument(json).toJson().data();
         QByteArray dataAck;
