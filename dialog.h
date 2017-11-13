@@ -6,9 +6,9 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QAuthenticator>
-#include <QWebSocket>
+//#include <QWebSocket>
 #include <QTcpServer>
-#include <QWebSocketServer>
+//#include <QWebSocketServer>
 #include <sslserver.h>
 #include <QMap>
 namespace Ui {
@@ -25,7 +25,7 @@ typedef enum {
 } TDevTypes;
 
 #define PORT1 9001
-#define PORT2 9002
+//#define PORT2 9002
 class Dialog : public QDialog
 {
     Q_OBJECT
@@ -45,7 +45,7 @@ private:
     QSslConfiguration sslConfiguration;
 
     //QWebSocketServer *m_pWebSocketServer;
-    QTcpServer *tcpServ;
+    //QTcpServer *tcpServ;
     QTcpSocket *tcpSock;
     QList<QSslSocket*> sslSockList;
     SslServer *sslServ;
@@ -92,9 +92,9 @@ private slots:
     void handleSocketReadyRead();
     void handleSocketDisconnected();
 
-    void handleOriginAuthenticationRequired(QWebSocketCorsAuthenticator *authenticator);
+    //void handleOriginAuthenticationRequired(QWebSocketCorsAuthenticator *authenticator);
     void handlePeerVerifyError(const QSslError &error);
-    void handleServerError(QWebSocketProtocol::CloseCode closeCode);
+    //void handleServerError(QWebSocketProtocol::CloseCode closeCode);
     void handleEncrypted(QSslSocket*);
 
     void handleAcceptError(QAbstractSocket::SocketError);

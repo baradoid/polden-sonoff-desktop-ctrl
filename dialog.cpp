@@ -23,8 +23,8 @@ Dialog::Dialog(QWidget *parent) :
     ui->setupUi(this);
 
     //int port = 9001;
-    QFile certFile(QStringLiteral("ssl/server.crt"));
-    QFile keyFile(QStringLiteral("ssl/priv.key"));
+    QFile certFile(QStringLiteral("ssl/selfcert.in.crt"));
+    QFile keyFile(QStringLiteral("ssl/selfcert.in.key"));
 
 //    QFile certFile(QStringLiteral("ssl/localhost.cert"));
 //    QFile keyFile(QStringLiteral("ssl/localhost.key"));
@@ -44,7 +44,6 @@ Dialog::Dialog(QWidget *parent) :
     sslConfiguration.setPrivateKey(sslKey);
     //sslConfiguration.setProtocol(QSsl::AnyProtocol);
     //sslConfiguration.setProtocol(QSsl::TlsV1_2);
-
 
     sslServ = new SslServer(this);
     if (sslServ->listen(QHostAddress::Any, PORT1)) {
@@ -197,16 +196,16 @@ void Dialog::handleNewSslConnection()
 
 void Dialog::handleNewTcpConnection()
 {
-    tcpSock = tcpServ->nextPendingConnection();
-    qDebug() << "handleNewTcpConnection" << tcpSock->peerAddress();
+//    tcpSock = tcpServ->nextPendingConnection();
+//    qDebug() << "handleNewTcpConnection" << tcpSock->peerAddress();
 
-    //    //sslSock->ignoreSslErrors();
-    connect(tcpSock, SIGNAL(readyRead()),
-            this, SLOT(handleSocketReadyRead()));
-    connect(tcpSock, SIGNAL(error(QAbstractSocket::SocketError)),
-            this, SLOT(handleSocketError(QAbstractSocket::SocketError)));
-    connect(tcpSock, SIGNAL(disconnected()),
-            this, SLOT(handleSocketDisconnected()));
+//    //    //sslSock->ignoreSslErrors();
+//    connect(tcpSock, SIGNAL(readyRead()),
+//            this, SLOT(handleSocketReadyRead()));
+//    connect(tcpSock, SIGNAL(error(QAbstractSocket::SocketError)),
+//            this, SLOT(handleSocketError(QAbstractSocket::SocketError)));
+//    connect(tcpSock, SIGNAL(disconnected()),
+//            this, SLOT(handleSocketDisconnected()));
 }
 
 void Dialog::handleSocketError(QSslSocket* s, QAbstractSocket::SocketError err)
@@ -217,15 +216,15 @@ void Dialog::handleSocketError(QSslSocket* s, QAbstractSocket::SocketError err)
 
 }
 
-void Dialog::handleOriginAuthenticationRequired(QWebSocketCorsAuthenticator *authenticator)
-{
-    qDebug() << "handleOriginAuthenticationRequired" ;
-}
+//void Dialog::handleOriginAuthenticationRequired(QWebSocketCorsAuthenticator *authenticator)
+//{
+//    qDebug() << "handleOriginAuthenticationRequired" ;
+//}
 
-void Dialog::handleServerError(QWebSocketProtocol::CloseCode closeCode)
-{
-    qDebug() << "handleServerError" ;
-}
+//void Dialog::handleServerError(QWebSocketProtocol::CloseCode closeCode)
+//{
+//    qDebug() << "handleServerError" ;
+//}
 
 void Dialog::handlePeerVerifyError(const QSslError &error)
 {
@@ -238,7 +237,7 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
     QString msg(ba);
     if(msg.startsWith("POST /dispatch/device HTTP/1.1\r\n")){
         qDebug() << s->peerAddress()  << "dispatch/device";
-        //qDebug() << "handleSocketReadyRead" << ba;
+        qDebug() << "handleSocketReadyRead" << ba;
         msg.remove("POST /dispatch/device HTTP/1.1\r\n");
         int ind = msg.indexOf("\r\n");
         msg = msg.mid(ind+2);
@@ -255,10 +254,11 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
         devIdMap[s] = itemObject["deviceid"].toString();
         //qDebug() << devIdMap;
 
+        QString servIp = ui->lineEditServerIp->text();
         QJsonObject json;
         json.insert("error", 0);
         json.insert("reason", "ok");
-        json.insert("IP", "192.168.0.105");
+        json.insert("IP", servIp);
         json.insert("port", PORT1);
         QByteArray data = QJsonDocument(json).toJson().data();
         QByteArray dataAck;
@@ -463,26 +463,38 @@ void Dialog::handleQNmFinished(QNetworkReply* r)
 
 void Dialog::sendApReq(int port)
 {
+    QString ssid = ui->lineEditSSID->text();
+    QString key = ui->lineEditKey->text();
+    QString servIp = ui->lineEditServerIp->text();
+
     QUrl url(QString("http://10.10.7.1/ap"));
     QNetworkRequest request(url);
 
-//    QByteArray jsonString = "{\n\"version\": 4,"
-//                "\"ssid\": \"TL-WR842ND\","
-//                "\"password\": \"kkkknnnn\","
-//                "\"serverName\": \"192.168.0.105\","
-//                "\"port\": 80\n}";
+    QByteArray jsonString = "{\n\"version\": 4,"
+                "\"ssid\": \"Redmi\","
+                "\"password\": \"kkkknnnn\","
+                "\"serverName\": \"192.168.43.250\","
+                "\"port\": 9001\n}";
 
     //QByteArray postDataSize = QByteArray::number(jsonString.size());
 
     QJsonObject json;
     json.insert("version", 4);
-    json.insert("ssid", "TL-WR842ND");
-    json.insert("password", "kkkknnnn");
-    json.insert("serverName", "192.168.0.105");
-    json.insert("port", port);
+    //json.insert("ssid", "TL-WR842ND");
+    //json.insert("password", "kkkknnnn");
+    //json.insert("serverName", "192.168.0.105");
+//    json.insert("ssid", "tech.10");
+//    json.insert("password", "1Polden4FX");
+//    json.insert("serverName", "192.168.0.2");
+      json.insert("ssid", ssid);
+      json.insert("password", key);
+      json.insert("serverName", servIp);
+
+    json.insert("port", PORT1);
 
     QByteArray data = QJsonDocument(json).toJson().data();
 
+    //data = jsonString;
     QByteArray postDataSize = QByteArray::number(data.size());
 
 
@@ -509,7 +521,7 @@ void Dialog::on_pushButtonSendReg_clicked()
 
 void Dialog::on_pushButtonSendReg2_clicked()
 {
-    sendApReq(PORT2);
+    //sendApReq(PORT2);
 }
 
 
