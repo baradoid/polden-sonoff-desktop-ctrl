@@ -16,8 +16,8 @@
   <widget class="QPushButton" name="pushButton">
    <property name="geometry">
     <rect>
-     <x>260</x>
-     <y>140</y>
+     <x>10</x>
+     <y>130</y>
      <width>75</width>
      <height>23</height>
     </rect>
@@ -29,8 +29,8 @@
   <widget class="QPushButton" name="pushButton_2">
    <property name="geometry">
     <rect>
-     <x>230</x>
-     <y>170</y>
+     <x>100</x>
+     <y>130</y>
      <width>75</width>
      <height>23</height>
     </rect>
@@ -142,6 +142,110 @@
    </property>
    <property name="text">
     <string>servIp</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButtonReg1On">
+   <property name="geometry">
+    <rect>
+     <x>190</x>
+     <y>180</y>
+     <width>71</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>on</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButtonReg1Off">
+   <property name="geometry">
+    <rect>
+     <x>270</x>
+     <y>180</y>
+     <width>71</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>off</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButtonReg2On">
+   <property name="geometry">
+    <rect>
+     <x>190</x>
+     <y>210</y>
+     <width>71</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>on</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButtonReg2Off">
+   <property name="geometry">
+    <rect>
+     <x>270</x>
+     <y>210</y>
+     <width>71</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>off</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButtonReg3On">
+   <property name="geometry">
+    <rect>
+     <x>190</x>
+     <y>240</y>
+     <width>71</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>on</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButtonReg3Off">
+   <property name="geometry">
+    <rect>
+     <x>270</x>
+     <y>240</y>
+     <width>71</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>off</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButtonReg4On">
+   <property name="geometry">
+    <rect>
+     <x>190</x>
+     <y>270</y>
+     <width>71</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>on</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButtonReg4Off">
+   <property name="geometry">
+    <rect>
+     <x>270</x>
+     <y>270</y>
+     <width>71</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>off</string>
    </property>
   </widget>
  </widget>

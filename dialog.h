@@ -21,7 +21,7 @@ typedef enum {
     unknown,
     ITAGZ1GL, //1ch basic
     PSFA04GL, //4ch
-    PSAB01GL
+    PSAB01GL  //smart socket
 } TDevTypes;
 
 #define PORT1 9001
@@ -52,8 +52,8 @@ private:
 
     QList<QWebSocket *> m_clients;
 
-    QMap<QSslSocket*, QString> devIdMap;
-    QMap<QSslSocket*, TDevTypes> devTypeMap;
+    QMap<QString, QSslSocket* > devIdMap;
+    QMap<QString, TDevTypes> devTypeMap;
 
     //QWebSocket m_deb_client;
 
@@ -61,7 +61,8 @@ private:
     //QMap<QSslSocket*, >
     void wsSendJson(QTcpSocket *s, QJsonObject);
 
-    void turnRele(QSslSocket*,bool);
+    void turnRele(QString devId, QSslSocket*,bool);
+    void turnRele(QString devId, QSslSocket*,int, bool);
     void sendApReq(int port);
 
 private slots:
@@ -104,6 +105,14 @@ private slots:
     void on_pushButtonSendReg2_clicked();
 
     void handleNewTcpConnection();
+    void on_pushButtonReg1On_clicked();
+    void on_pushButtonReg1Off_clicked();
+    void on_pushButtonReg2On_clicked();
+    void on_pushButtonReg2Off_clicked();
+    void on_pushButtonReg3On_clicked();
+    void on_pushButtonReg3Off_clicked();
+    void on_pushButtonReg4On_clicked();
+    void on_pushButtonReg4Off_clicked();
 };
 
 #endif // DIALOG_H
