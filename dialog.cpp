@@ -269,8 +269,16 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
                //   "Server: openresty\r\n"
                //   "Date: Mon, 15 May 2017 01:26:00 GMT\r\n"
                   "Content-Type: application/json\r\n"
-                  "Content-Length: 84\r\n"
+                  "Content-Length: 82\r\n"
                   "Connection: keep-alive\r\n\r\n";
+        QString dataAckStr;
+        dataAckStr.sprintf("HTTP/1.1 200 OK\r\n"
+                           //   "Server: openresty\r\n"
+                           //   "Date: Mon, 15 May 2017 01:26:00 GMT\r\n"
+                              "Content-Type: application/json\r\n"
+                              "Content-Length: %d\r\n"
+                              "Connection: keep-alive\r\n\r\n", data.length());
+        dataAck = dataAckStr.toLatin1();
         dataAck += data;
 
         s->write(dataAck);
