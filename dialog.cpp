@@ -612,6 +612,10 @@ void Dialog::on_pushButton_clicked()
         if(devTypeMap[devId] == ITAGZ1GL){
             turnRele(devId, devIdMap[devId], true);
         }
+        if(devTypeMap[devId] == PSAB01GL){
+            turnRele(devId, devIdMap[devId], true);
+        }
+
 
     }
 }
@@ -622,6 +626,10 @@ void Dialog::on_pushButton_2_clicked()
         if(devTypeMap[devId] == ITAGZ1GL){
             turnRele(devId, devIdMap[devId], false);
         }
+        if(devTypeMap[devId] == PSAB01GL){
+            turnRele(devId, devIdMap[devId], false);
+        }
+
 
     }
 }
