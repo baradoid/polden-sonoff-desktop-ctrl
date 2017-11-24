@@ -30,10 +30,14 @@ Dialog::Dialog(QWidget *parent) :
 
 //    QFile certFile(QStringLiteral("ssl/localhost.cert"));
 //    QFile keyFile(QStringLiteral("ssl/localhost.key"));
-    if(certFile.open(QIODevice::ReadOnly) == false)
+    if(certFile.open(QIODevice::ReadOnly) == false){
         qDebug() << "certFile error";
-    if(keyFile.open(QIODevice::ReadOnly) == false)
-        qDebug() << "keyFile error";
+        ui->plainTextEdit->appendPlainText("certFile error");
+    }
+    if(keyFile.open(QIODevice::ReadOnly) == false){
+        //qDebug() << "keyFile error";
+        ui->plainTextEdit->appendPlainText("keyFile error");
+    }
 
 
     QSslCertificate certificate(&certFile, QSsl::Pem);
@@ -49,9 +53,16 @@ Dialog::Dialog(QWidget *parent) :
 
     sslServ = new SslServer(this);
     if (sslServ->listen(QHostAddress::Any, PORT1)) {
-        qDebug() << "listening on port" << PORT1;
+        QString msg = QString("listening on port %1").arg(PORT1);
+        qDebug() << qPrintable(msg);
+        ui->plainTextEdit->appendPlainText(msg);
         connect(sslServ, SIGNAL(newConnection()),  this, SLOT(handleNewSslConnection()));
         //connect(m_pWebSocketServer, &QWebSocketServer::closed, this, &EchoServer::closed);
+    }
+    else{
+        QString msg = QString("listening on port %1 failed").arg(PORT1);
+        qDebug() << qPrintable(msg);
+        ui->plainTextEdit->appendPlainText(msg);
     }
 
 //    tcpServ = new QTcpServer(this);
@@ -184,7 +195,11 @@ void Dialog::handleNewSslConnection()
 
     QSslSocket *sslSock = (QSslSocket*)sslServ->nextPendingConnection();
 
-    qDebug() << "onNewSSLConnection" << sslSock->peerAddress();
+
+    QString msg = QString("onNewSSLConnection %1").arg(sslSock->peerAddress().toString());
+    qDebug() << qPrintable(msg);
+    ui->plainTextEdit->appendPlainText(msg);
+
     sslSockList.append(sslSock);
     connect(sslSock, &QSslSocket::encrypted, [=](){ handleEncrypted(sslSock);});
     //connect(sslSock, &QSslSocket::sslErrors, [this, sslSock](const QList<QSslError> &erl){ handleSSLError(sslSock, erl);} );
@@ -238,7 +253,9 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
     QByteArray ba = s->readAll();
     QString msg(ba);
     if(msg.startsWith("POST /dispatch/device HTTP/1.1\r\n")){
-        qDebug() << s->peerAddress()  << "dispatch/device";
+        QString msg = QString("%1 dispatch/device").arg(s->peerAddress().toString());
+        qDebug() << qPrintable(msg);
+        ui->plainTextEdit->appendPlainText(msg);
         qDebug() << "handleSocketReadyRead" << ba;
         msg.remove("POST /dispatch/device HTTP/1.1\r\n");
         int ind = msg.indexOf("\r\n");
@@ -285,7 +302,10 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
     }
     else if(msg.startsWith("GET /api/ws HTTP/1.1\r\n")){
         //qDebug() << "handleSocketReadyRead" << ba;
-        qDebug() << s->peerAddress()  << "Switching Protocols";
+        QString msg = QString("%1 Switching Protocols").arg(s->peerAddress().toString());
+        qDebug() << qPrintable(msg);
+        ui->plainTextEdit->appendPlainText(msg);
+
         QByteArray dataAck = "HTTP/1.1 101 Switching Protocols\r\n"
                              "Upgrade: websocket\r\n"
                              "Connection: Upgrade\r\n"

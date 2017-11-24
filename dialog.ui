@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
+    <width>509</width>
     <height>300</height>
    </rect>
   </property>
@@ -42,8 +42,8 @@
   <widget class="QGroupBox" name="groupBox">
    <property name="geometry">
     <rect>
-     <x>40</x>
-     <y>170</y>
+     <x>200</x>
+     <y>10</y>
      <width>131</width>
      <height>121</height>
     </rect>
@@ -147,8 +147,8 @@
   <widget class="QPushButton" name="pushButtonReg1On">
    <property name="geometry">
     <rect>
-     <x>190</x>
-     <y>180</y>
+     <x>350</x>
+     <y>20</y>
      <width>71</width>
      <height>23</height>
     </rect>
@@ -160,8 +160,8 @@
   <widget class="QPushButton" name="pushButtonReg1Off">
    <property name="geometry">
     <rect>
-     <x>270</x>
-     <y>180</y>
+     <x>430</x>
+     <y>20</y>
      <width>71</width>
      <height>23</height>
     </rect>
@@ -173,8 +173,8 @@
   <widget class="QPushButton" name="pushButtonReg2On">
    <property name="geometry">
     <rect>
-     <x>190</x>
-     <y>210</y>
+     <x>350</x>
+     <y>50</y>
      <width>71</width>
      <height>23</height>
     </rect>
@@ -186,8 +186,8 @@
   <widget class="QPushButton" name="pushButtonReg2Off">
    <property name="geometry">
     <rect>
-     <x>270</x>
-     <y>210</y>
+     <x>430</x>
+     <y>50</y>
      <width>71</width>
      <height>23</height>
     </rect>
@@ -199,8 +199,8 @@
   <widget class="QPushButton" name="pushButtonReg3On">
    <property name="geometry">
     <rect>
-     <x>190</x>
-     <y>240</y>
+     <x>350</x>
+     <y>80</y>
      <width>71</width>
      <height>23</height>
     </rect>
@@ -212,8 +212,8 @@
   <widget class="QPushButton" name="pushButtonReg3Off">
    <property name="geometry">
     <rect>
-     <x>270</x>
-     <y>240</y>
+     <x>430</x>
+     <y>80</y>
      <width>71</width>
      <height>23</height>
     </rect>
@@ -225,8 +225,8 @@
   <widget class="QPushButton" name="pushButtonReg4On">
    <property name="geometry">
     <rect>
-     <x>190</x>
-     <y>270</y>
+     <x>350</x>
+     <y>110</y>
      <width>71</width>
      <height>23</height>
     </rect>
@@ -238,14 +238,24 @@
   <widget class="QPushButton" name="pushButtonReg4Off">
    <property name="geometry">
     <rect>
-     <x>270</x>
-     <y>270</y>
+     <x>430</x>
+     <y>110</y>
      <width>71</width>
      <height>23</height>
     </rect>
    </property>
    <property name="text">
     <string>off</string>
+   </property>
+  </widget>
+  <widget class="QPlainTextEdit" name="plainTextEdit">
+   <property name="geometry">
+    <rect>
+     <x>70</x>
+     <y>160</y>
+     <width>351</width>
+     <height>131</height>
+    </rect>
    </property>
   </widget>
  </widget>
