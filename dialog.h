@@ -11,6 +11,8 @@
 //#include <QWebSocketServer>
 #include <sslserver.h>
 #include <QMap>
+#include <QSettings>
+
 namespace Ui {
 class Dialog;
 }
@@ -23,6 +25,13 @@ typedef enum {
     PSFA04GL, //4ch
     PSAB01GL  //smart socket
 } TDevTypes;
+
+typedef struct{
+    int id;
+    QString devId;
+    TDevTypes type;
+    QPushButton *pb[4];
+} TSonoffDevData;
 
 #define PORT1 9001
 //#define PORT2 9002
@@ -53,7 +62,10 @@ private:
     QList<QWebSocket *> m_clients;
 
     QMap<QString, QSslSocket* > devIdMap;
-    QMap<QString, TDevTypes> devTypeMap;
+    //QMap<QString, TDevTypes> devTypeMap;
+    QMap<QString, TSonoffDevData*> devDataMap;
+
+    QSettings settings;
 
     //QWebSocket m_deb_client;
 
@@ -64,6 +76,8 @@ private:
     void turnRele(QString devId, QSslSocket*,bool);
     void turnRele(QString devId, QSslSocket*,int, bool);
     void sendApReq(int port);
+
+    void updateTable();
 
 private slots:
     void handleTimer();
@@ -102,7 +116,6 @@ private slots:
 
     void on_pushButton_clicked();
     void on_pushButton_2_clicked();
-    void on_pushButtonSendReg2_clicked();
 
     void handleNewTcpConnection();
     void on_pushButtonReg1On_clicked();
@@ -113,6 +126,8 @@ private slots:
     void on_pushButtonReg3Off_clicked();
     void on_pushButtonReg4On_clicked();
     void on_pushButtonReg4Off_clicked();
+
+    void turnRele(QString, QPushButton*, int);
 };
 
 #endif // DIALOG_H

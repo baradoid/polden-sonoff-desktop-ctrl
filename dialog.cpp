@@ -17,13 +17,17 @@
 Dialog::Dialog(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::Dialog),
-    reply(Q_NULLPTR)/*,
+    reply(Q_NULLPTR),
+    settings("murinets", "sonoff-control")/*,
     m_pWebSocketServer(Q_NULLPTR),
     tcpServ(this)*/
 {
     ui->setupUi(this);
 
-    ui->lineEditServerIp->setText("192.168.0.105");
+    ui->lineEditServerIp->setText(settings.value("servIP").toString());
+    ui->lineEditSSID->setText(settings.value("SSID").toString());
+    ui->lineEditKey->setText(settings.value("key").toString());
+
     //int port = 9001;
     QFile certFile(QStringLiteral("ssl/selfcert.in.crt"));
     QFile keyFile(QStringLiteral("ssl/selfcert.in.key"));
@@ -121,6 +125,14 @@ Dialog::Dialog(QWidget *parent) :
 
 Dialog::~Dialog()
 {
+    QString ssidName = ui->lineEditSSID->text();
+    QString key =  ui->lineEditKey->text();
+    QString servIP =  ui->lineEditServerIp->text();
+
+    settings.setValue("SSID", ssidName);
+    settings.setValue("key", key);
+    settings.setValue("servIP", servIP);
+
     delete ui;
 }
 
@@ -145,12 +157,13 @@ void Dialog::handleHttpFinished()
 {
     qDebug() << "handleHttpFinished";
     QByteArray ba = reply->readAll();
-    qDebug() << ba;
-    QJsonDocument doc(QJsonDocument::fromJson(ba));
+    //qDebug() << ba;
+    ui->plainTextEdit->appendPlainText(QString(ba));
+    /*QJsonDocument doc(QJsonDocument::fromJson(ba));
     QJsonObject json = doc.object();
     qDebug() << json["deviceid"].toString().toLatin1();
     qDebug() << json["apikey"].toString().toLatin1();
-    qDebug() << json["accept"].toString().toLatin1();
+    qDebug() << json["accept"].toString().toLatin1();*/
 }
 
 void Dialog::handleHttpReadyRead()
@@ -196,8 +209,8 @@ void Dialog::handleNewSslConnection()
     QSslSocket *sslSock = (QSslSocket*)sslServ->nextPendingConnection();
 
 
-    QString msg = QString("onNewSSLConnection %1").arg(sslSock->peerAddress().toString());
-    qDebug() << qPrintable(msg);
+    QString msg = QString("%1 newSSLConnection ").arg(sslSock->peerAddress().toString());
+    //qDebug() << qPrintable(msg);
     ui->plainTextEdit->appendPlainText(msg);
 
     sslSockList.append(sslSock);
@@ -322,34 +335,66 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
 
         QString devIdStr = io["deviceid"].toString();
         devIdMap[devIdStr] = s;
+
+        QString mdl = io["model"].toString();
+
+
+
         QJsonObject jsonAck;
         jsonAck["error"] = 0;
         jsonAck["deviceid"] = devIdStr;
         jsonAck["apikey"] = "111111111-1111-1111-1111-111111111111";
 
+        TSonoffDevData *tsdd = devDataMap[devIdStr];
+        if(tsdd == NULL){
+            tsdd = new TSonoffDevData;
+            devDataMap.insert(devIdStr, tsdd);
+            tsdd->devId = devIdStr;
+            tsdd->id = devDataMap.keys().size();
+
+            tsdd->type = unknown;
+            if(mdl.compare("PSF-A04-GL") == 0){
+                tsdd->type = PSFA04GL;
+            }
+            else if(mdl.compare("ITA-GZ1-GL") == 0){
+                tsdd->type = ITAGZ1GL;
+            }
+            else if(mdl.compare("PSA-B01-GL") == 0){
+                tsdd->type = PSAB01GL;
+            }
+
+            for(int i=0; i<4; i++){
+                QPushButton *pb = new QPushButton("na");
+                tsdd->pb[i] = pb;
+                connect(pb, &QPushButton::clicked, [=](){ turnRele(devIdStr, pb, i);});
+            }
+
+
+        }
+
+        updateTable();
+
         if(io.contains("action")){
             if(io["action"].toString().compare("update") == 0){
-                qDebug() << s->peerAddress() << "update" << qPrintable(io["params"].toObject()["switch"].toString());
-                qDebug() << io;
+                //qDebug() << s->peerAddress() << "update" << qPrintable(io["params"].toObject()["switch"].toString());
+                //qDebug() << io;
+
+                QString msg = QString("%1 update %2").arg(s->peerAddress().toString()).arg(io["params"].toObject()["switch"].toString());
+                qDebug() << qPrintable(msg);
+                ui->plainTextEdit->appendPlainText(msg);
+                //ui->plainTextEdit->appendPlainText(io);
+
                 wsSendJson(s, jsonAck);
-                if(devTypeMap[devIdStr] == PSFA04GL){
+                if(devDataMap[devIdStr]->type == PSFA04GL){
                     qDebug() << "PSFA04GL" << io["params"].toObject()["switches"];
 
                 }
             }
             else if(io["action"].toString().compare("register") == 0){
                 //if()
-                devTypeMap[devIdStr] = unknown;
-                QString mdl = io["model"].toString();
-                if(mdl.compare("PSF-A04-GL") == 0){
-                    devTypeMap[devIdStr] = PSFA04GL;
-                }
-                else if(mdl.compare("ITA-GZ1-GL") == 0){
-                    devTypeMap[devIdStr] = ITAGZ1GL;
-                }
-                else if(mdl.compare("PSA-B01-GL") == 0){
-                    devTypeMap[devIdStr] = PSAB01GL;
-                }
+                //devTypeMap[devIdStr] = unknown;
+
+                //ui->tableWidget->setCellWidget( ,0);
 
 
                 qDebug() << s->peerAddress() << "register" << mdl; //<< qPrintable(itemObject["params"].toObject()["switch"].toString());
@@ -473,7 +518,9 @@ void Dialog::handleSslSocketDisconnected(QSslSocket* s)
 
 void Dialog::handleEncrypted(QSslSocket* s)
 {
-    qDebug()  << "handleEncrypted" << s->peerAddress();
+    QString msg = QString("%1 encrypted").arg(s->peerAddress().toString());
+    //qDebug() << qPrintable(msg);
+    ui->plainTextEdit->appendPlainText(msg);
 }
 
 void Dialog::onWebSocketConnected()
@@ -506,11 +553,11 @@ void Dialog::sendApReq(int port)
     QUrl url(QString("http://10.10.7.1/ap"));
     QNetworkRequest request(url);
 
-    QByteArray jsonString = "{\n\"version\": 4,"
-                "\"ssid\": \"Redmi\","
-                "\"password\": \"kkkknnnn\","
-                "\"serverName\": \"192.168.43.250\","
-                "\"port\": 9001\n}";
+//    QByteArray jsonString = "{\n\"version\": 4,"
+//                "\"ssid\": \"Redmi\","
+//                "\"password\": \"kkkknnnn\","
+//                "\"serverName\": \"192.168.43.250\","
+//                "\"port\": 9001\n}";
 
     //QByteArray postDataSize = QByteArray::number(jsonString.size());
 
@@ -554,12 +601,6 @@ void Dialog::on_pushButtonSendReg_clicked()
 {
     sendApReq(PORT1);
 }
-
-void Dialog::on_pushButtonSendReg2_clicked()
-{
-    //sendApReq(PORT2);
-}
-
 
 void Dialog::on_pushButtonGetReq_clicked()
 {
@@ -636,25 +677,23 @@ void Dialog::turnRele(QString devId, QSslSocket* s, int id, bool bEna)
 
 void Dialog::on_pushButton_clicked()
 {
-    foreach (QString devId, devIdMap.keys()) {
-        if(devTypeMap[devId] == ITAGZ1GL){
+    foreach (QString devId, devDataMap.keys()) {
+        if(devDataMap[devId]->type == ITAGZ1GL){
             turnRele(devId, devIdMap[devId], true);
         }
-        if(devTypeMap[devId] == PSAB01GL){
+        if(devDataMap[devId]->type == PSAB01GL){
             turnRele(devId, devIdMap[devId], true);
         }
-
-
     }
 }
 
 void Dialog::on_pushButton_2_clicked()
 {
     foreach (QString devId, devIdMap.keys()) {
-        if(devTypeMap[devId] == ITAGZ1GL){
+        if(devDataMap[devId]->type == ITAGZ1GL){
             turnRele(devId, devIdMap[devId], false);
         }
-        if(devTypeMap[devId] == PSAB01GL){
+        if(devDataMap[devId]->type == PSAB01GL){
             turnRele(devId, devIdMap[devId], false);
         }
 
@@ -667,7 +706,7 @@ void Dialog::on_pushButtonReg1On_clicked()
 {
     foreach (QString devIdStr, devIdMap.keys()) {
 
-        if(devTypeMap[devIdStr] == PSFA04GL){
+        if(devDataMap[devIdStr]->type == PSFA04GL){
             turnRele(devIdStr, devIdMap[devIdStr], 0, true);
         }
 //        turnRele(s, 1, true);
@@ -680,7 +719,7 @@ void Dialog::on_pushButtonReg1On_clicked()
 void Dialog::on_pushButtonReg1Off_clicked()
 {
     foreach (QString devIdStr, devIdMap.keys()) {
-        if(devTypeMap[devIdStr] == PSFA04GL){
+        if(devDataMap[devIdStr]->type == PSFA04GL){
             turnRele(devIdStr, devIdMap[devIdStr], 0, false);
         }
     }
@@ -689,7 +728,7 @@ void Dialog::on_pushButtonReg1Off_clicked()
 void Dialog::on_pushButtonReg2On_clicked()
 {
     foreach (QString devIdStr, devIdMap.keys()) {
-        if(devTypeMap[devIdStr] == PSFA04GL){
+        if(devDataMap[devIdStr]->type == PSFA04GL){
             turnRele(devIdStr, devIdMap[devIdStr], 1, true);
         }
     }
@@ -698,7 +737,7 @@ void Dialog::on_pushButtonReg2On_clicked()
 void Dialog::on_pushButtonReg2Off_clicked()
 {
     foreach (QString devIdStr, devIdMap.keys()) {
-        if(devTypeMap[devIdStr] == PSFA04GL){
+        if(devDataMap[devIdStr]->type == PSFA04GL){
             turnRele(devIdStr, devIdMap[devIdStr], 1, false);
         }
     }
@@ -707,7 +746,7 @@ void Dialog::on_pushButtonReg2Off_clicked()
 void Dialog::on_pushButtonReg3On_clicked()
 {
     foreach (QString devIdStr, devIdMap.keys()) {
-        if(devTypeMap[devIdStr] == PSFA04GL){
+        if(devDataMap[devIdStr]->type == PSFA04GL){
             turnRele(devIdStr, devIdMap[devIdStr], 2, true);
         }
     }
@@ -716,7 +755,7 @@ void Dialog::on_pushButtonReg3On_clicked()
 void Dialog::on_pushButtonReg3Off_clicked()
 {
     foreach (QString devIdStr, devIdMap.keys()) {
-        if(devTypeMap[devIdStr] == PSFA04GL){
+        if(devDataMap[devIdStr]->type == PSFA04GL){
             turnRele(devIdStr, devIdMap[devIdStr], 2, false);
         }
     }
@@ -725,7 +764,7 @@ void Dialog::on_pushButtonReg3Off_clicked()
 void Dialog::on_pushButtonReg4On_clicked()
 {
     foreach (QString devIdStr, devIdMap.keys()) {
-        if(devTypeMap[devIdStr] == PSFA04GL){
+        if(devDataMap[devIdStr]->type == PSFA04GL){
             turnRele(devIdStr, devIdMap[devIdStr], 3, true);
         }
     }
@@ -734,8 +773,64 @@ void Dialog::on_pushButtonReg4On_clicked()
 void Dialog::on_pushButtonReg4Off_clicked()
 {
     foreach (QString devIdStr, devIdMap.keys()) {
-        if(devTypeMap[devIdStr] == PSFA04GL){
+        if(devDataMap[devIdStr]->type == PSFA04GL){
             turnRele(devIdStr, devIdMap[devIdStr], 3, false);
         }
+    }
+}
+
+void Dialog::updateTable()
+{
+    QTableWidget *tw = ui->tableWidget;
+    //tw->clearContents();
+    QList<QString> keys = devDataMap.keys();
+    if(tw->rowCount() < keys.size()){
+        tw->setRowCount(keys.size());
+    }
+    for(int id=0; id<keys.length(); id++){
+        QString devIdStr = keys[id];
+        TSonoffDevData &devData = *(devDataMap[devIdStr]);
+        QLabel *l = new QLabel(devIdStr);
+        l->setAlignment(Qt::AlignCenter);
+        ui->tableWidget->setCellWidget(id, 0, l);
+        l = new QLabel("type");
+        ui->tableWidget->setCellWidget(id, 1, l);
+
+        if((devData.type == ITAGZ1GL) ||
+           (devData.type == PSAB01GL)){
+            QPushButton *pb = devData.pb[0];
+            tw->setCellWidget(id, 2, pb);
+            devData.pb[0] = pb;
+        }
+        else if(devData.type == PSFA04GL){
+            for(int i=0; i<4; i++){
+                QPushButton *pb = devData.pb[i];
+                tw->setCellWidget(id, 2+i, pb);
+            }
+        }
+    }
+    tw->resizeColumnsToContents();
+}
+
+void Dialog::turnRele(QString devIdStr, QPushButton *pb, int releId)
+{
+    qDebug() << devIdStr << pb->text() << releId;
+
+    bool bOn = false;
+    if(pb->text().compare("off") == 0){
+        bOn = false;
+        pb->setText("on");
+    }
+    else{
+        bOn = true;
+        pb->setText("off");
+    }
+
+    TSonoffDevData &dd = *devDataMap[devIdStr];
+    if(dd.type == PSFA04GL){
+        turnRele(devIdStr, devIdMap[devIdStr], releId, bOn);
+    }
+    else if((dd.type == ITAGZ1GL) || (dd.type == PSAB01GL)){
+        turnRele(devIdStr, devIdMap[devIdStr], bOn);
     }
 }
