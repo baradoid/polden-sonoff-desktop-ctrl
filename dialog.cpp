@@ -62,14 +62,14 @@ Dialog::Dialog(QWidget *parent) :
     sslServ = new SslServer(this);
     if (sslServ->listen(QHostAddress::Any, PORT1)) {
         QString msg = QString("listening on port %1").arg(PORT1);
-        qDebug() << qPrintable(msg);
+        //qDebug() << qPrintable(msg);
         ui->plainTextEdit->appendPlainText(msg);
         connect(sslServ, SIGNAL(newConnection()),  this, SLOT(handleNewSslConnection()));
         //connect(m_pWebSocketServer, &QWebSocketServer::closed, this, &EchoServer::closed);
     }
     else{
         QString msg = QString("listening on port %1 failed").arg(PORT1);
-        qDebug() << qPrintable(msg);
+        //qDebug() << qPrintable(msg);
         ui->plainTextEdit->appendPlainText(msg);
     }
 
@@ -215,13 +215,7 @@ void Dialog::handleWSNwConn()
 
 void Dialog::handleNewSslConnection()
 {
-
     QSslSocket *sslSock = (QSslSocket*)sslServ->nextPendingConnection();
-
-
-    QString msg = QString("%1 newSSLConnection ").arg(sslSock->peerAddress().toString());
-    //qDebug() << qPrintable(msg);
-    ui->plainTextEdit->appendPlainText(msg);
 
     sslSockList.append(sslSock);
     connect(sslSock, &QSslSocket::encrypted, [=](){ handleEncrypted(sslSock);});
@@ -232,6 +226,12 @@ void Dialog::handleNewSslConnection()
 
     sslSock->setSslConfiguration(sslConfiguration);
     sslSock->startServerEncryption();
+
+
+    QString msg = QString("%1 newSSLConnection").arg(sslSock->peerAddress().toString());
+    //qDebug() << qPrintable(msg);
+    msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+    ui->plainTextEdit->appendPlainText(msg);
 }
 
 void Dialog::handleNewTcpConnection()
@@ -248,13 +248,13 @@ void Dialog::handleNewTcpConnection()
 //            this, SLOT(handleSocketDisconnected()));
 }
 
-void Dialog::handleSocketError(QSslSocket* s, QAbstractSocket::SocketError err)
-{
+//void Dialog::handleSocketError(QSslSocket* s, QAbstractSocket::SocketError err)
+//{
     //qDebug() << "handleSocketError" << err << sslSock->sslErrors();
 //    qDebug() << sslSock->sslErrors();
 //    sslSock->ignoreSslErrors();
 
-}
+//}
 
 //void Dialog::handleOriginAuthenticationRequired(QWebSocketCorsAuthenticator *authenticator)
 //{
@@ -276,10 +276,6 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
     QByteArray ba = s->readAll();
     QString msg(ba);
     if(msg.startsWith("POST /dispatch/device HTTP/1.1\r\n")){
-        QString msg = QString("%1 dispatch/device").arg(s->peerAddress().toString());
-        qDebug() << qPrintable(msg);
-        ui->plainTextEdit->appendPlainText(msg);
-        qDebug() << "handleSocketReadyRead" << ba;
         msg.remove("POST /dispatch/device HTTP/1.1\r\n");
         int ind = msg.indexOf("\r\n");
         msg = msg.mid(ind+2);
@@ -322,19 +318,25 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
         dataAck += data;
 
         s->write(dataAck);
+
+        QString msg = QString("%1 dispatch/device").arg(s->peerAddress().toString());
+        //qDebug() << qPrintable(msg);
+        //qDebug() << "handleSocketReadyRead" << ba;
+        msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+        ui->plainTextEdit->appendPlainText(msg);
     }
     else if(msg.startsWith("GET /api/ws HTTP/1.1\r\n")){
-        //qDebug() << "handleSocketReadyRead" << ba;
-        QString msg = QString("%1 Switching Protocols").arg(s->peerAddress().toString());
-        qDebug() << qPrintable(msg);
-        ui->plainTextEdit->appendPlainText(msg);
-
         QByteArray dataAck = "HTTP/1.1 101 Switching Protocols\r\n"
                              "Upgrade: websocket\r\n"
                              "Connection: Upgrade\r\n"
                              "Sec-WebSocket-Accept: q1/L5gx6qdQ7y3UWgO/TXXXXXXA=\r\n";
         //qDebug() << dataAck << dataAck.length();
         s->write(dataAck);
+
+        QString msg = QString("%1 Switching Protocols").arg(s->peerAddress().toString());
+        //qDebug() << qPrintable(msg);
+        msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+        ui->plainTextEdit->appendPlainText(msg);
     }
     else if(ba[0] == 0x81){
         int ind = ba.indexOf("{");
@@ -361,6 +363,8 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
             devDataMap.insert(devIdStr, tsdd);
             tsdd->devId = devIdStr;
             tsdd->id = devDataMap.keys().size();
+            tsdd->rowIndex = -1;
+            tsdd->typeStr = mdl;
 
             tsdd->type = unknown;
             if(mdl.compare("PSF-A04-GL") == 0){
@@ -378,61 +382,83 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
                 tsdd->pb[i] = pb;
                 connect(pb, &QPushButton::clicked, [=](){ turnRele(devIdStr, pb, i);});
             }
-
-
         }
 
         updateTable();
 
         if(io.contains("action")){
-            if(io["action"].toString().compare("update") == 0){
+            if(io["action"].toString() == "update"){
                 //qDebug() << s->peerAddress() << "update" << qPrintable(io["params"].toObject()["switch"].toString());
                 //qDebug() << io;
 
                 QString msg = QString("%1 update %2").arg(s->peerAddress().toString()).arg(io["params"].toObject()["switch"].toString());
-                qDebug() << qPrintable(msg);
+                //qDebug() << qPrintable(msg);
+                msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
                 ui->plainTextEdit->appendPlainText(msg);
                 //ui->plainTextEdit->appendPlainText(io);
 
                 wsSendJson(s, jsonAck);
-                if(devDataMap[devIdStr]->type == PSFA04GL){
-                    qDebug() << "PSFA04GL" << io["params"].toObject()["switches"];
 
+                QString swStr;
+                switch(tsdd->type){
+                case ITAGZ1GL:
+                case PSAB01GL:
+                    swStr = io["params"].toObject()["switch"].toString();
+                    tsdd->pb[0]->setText(swStr);
+                    break;
+                case PSFA04GL:
+                    //qDebug() << io["params"].toObject()["switches"];
+                    for(int i=0; i<4; i++){
+                        swStr = io["params"].toObject()["switches"].toArray()[i].toObject()["switch"].toString();
+                        tsdd->pb[i]->setText(swStr);
+                    }
+                    break;
                 }
+
             }
             else if(io["action"].toString().compare("register") == 0){
-                //if()
-                //devTypeMap[devIdStr] = unknown;
-
-                //ui->tableWidget->setCellWidget( ,0);
-
-
-                qDebug() << s->peerAddress() << "register" << mdl; //<< qPrintable(itemObject["params"].toObject()["switch"].toString());
-                //qDebug() << mdl;
-                //qDebug() << s->peerAddress() << "register" << qPrintable(io["params"].toString());
                 wsSendJson(s, jsonAck);
+
+                QString msg = QString("%1 register %2").arg(s->peerAddress().toString()).arg(mdl);
+                msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+                ui->plainTextEdit->appendPlainText(msg);
             }
             else if(io["action"].toString().compare("date") == 0){
-                qDebug() << s->peerAddress() << "date";
                 jsonAck["date"] = "2017-05-15T01:26:01.498Z";
                 wsSendJson(s, jsonAck);
+
+                QString msg = QString("%1 date").arg(s->peerAddress().toString());
+                msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+                ui->plainTextEdit->appendPlainText(msg);
             }
             else if(io["action"].toString().compare("query") == 0){
-                qDebug() << s->peerAddress() << "query";
-                //qDebug() << io;
                 jsonAck["params"] = 0;
                 wsSendJson(s, jsonAck);
+
+                QString msg = QString("%1 query").arg(s->peerAddress().toString());
+                msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+                ui->plainTextEdit->appendPlainText(msg);
             }
         }
         else if(io.contains("error")){
-            qDebug() << s->peerAddress()  << "respond:" << io["error"].toString().toInt() /*<< "seq:" << io["sequence"].toString()*/;
+            //qDebug() << s->peerAddress()  << "respond:" << io["error"].toString().toInt() /*<< "seq:" << io["sequence"].toString()*/;
+
+            int err = io["error"].toString().toInt();
+            if(err != 0){
+                QString msg = QString("%1 respond %2").arg(s->peerAddress().toString()).arg(err);
+                msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+                ui->plainTextEdit->appendPlainText(msg);
+            }
         }
         else{
-            qDebug() << s->peerAddress()  << "unknown" << ba;
+            //qDebug() << s->peerAddress()  << "unknown" << ba;
+
+            QString msg = QString("%1 unknown").arg(s->peerAddress().toString());
+            msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+            ui->plainTextEdit->appendPlainText(msg);
         }
     }
     else if(ba[0] == 0x89){
-        qDebug() << s->peerAddress() << "PING-PONG" << QTime::currentTime().toString("mm:ss:zzz");
         QByteArray dataAck;
         dataAck.append((char)0x8A);
         dataAck.append((char)0x00);
@@ -442,9 +468,18 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
         dataAck.append((char)0x00);
         dataAck.append((char)0x00);
         s->write(dataAck);
+
+        QString msg = QString("%1 p-p").arg(s->peerAddress().toString());
+        //qDebug() << s->peerAddress() << "PING-PONG" << QTime::currentTime().toString("mm:ss:zzz");
+        msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+        //ui->plainTextEdit->appendPlainText(msg);
+
     }
-    else{
-        qDebug() << s->peerAddress()  << "handleSocketReadyRead" << ba;
+    else{        
+        QString msg = QString("%1 handleSocketReadyRead %2").arg(s->peerAddress().toString()).arg(QString(ba));
+        //qDebug() << s->peerAddress()  << "handleSocketReadyRead" << ba;
+        msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+        ui->plainTextEdit->appendPlainText(msg);
 
     }
 
@@ -475,61 +510,68 @@ void Dialog::wsSendJson(QTcpSocket *s, QJsonObject json)
 
 }
 
-void Dialog::handleSocketReadyRead()
-{
-    QByteArray ba = tcpSock->readAll();
-    QJsonDocument itemDoc = QJsonDocument::fromJson(ba);
-    QJsonObject rootObj = itemDoc.object();
+//void Dialog::handleSocketReadyRead()
+//{
+//    QByteArray ba = tcpSock->readAll();
+//    QJsonDocument itemDoc = QJsonDocument::fromJson(ba);
+//    QJsonObject rootObj = itemDoc.object();
 
-    qDebug() << "handleSocketReadyRead" << ba;
+//    qDebug() << "handleSocketReadyRead" << ba;
 
-//    QUrl url(QString("http://192.168.0.102/ap"));
-//    QNetworkRequest request(url);
+////    QUrl url(QString("http://192.168.0.102/ap"));
+////    QNetworkRequest request(url);
 
-////    QByteArray jsonString = "{\n\"version\": 4,"
-////                "\"ssid\": \"TL-WR842ND\","
-////                "\"password\": \"kkkknnnn\","
-////                "\"serverName\": \"192.168.0.105\","
-////                "\"port\": 80\n}";
+//////    QByteArray jsonString = "{\n\"version\": 4,"
+//////                "\"ssid\": \"TL-WR842ND\","
+//////                "\"password\": \"kkkknnnn\","
+//////                "\"serverName\": \"192.168.0.105\","
+//////                "\"port\": 80\n}";
 
-//    //QByteArray postDataSize = QByteArray::number(jsonString.size());
-
-
-//    QJsonObject json;
-//    json.insert("error", 0);
-//    json.insert("deviceid", "TL-WR842ND");
-//    json.insert("apikey", "111111111-1111-1111-1111-111111111111");
-
-//    QByteArray data = QJsonDocument(json).toJson().data();
-//    QByteArray postDataSize = QByteArray::number(data.size());
-//    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-//    request.setHeader(QNetworkRequest::ContentLengthHeader, postDataSize);
+////    //QByteArray postDataSize = QByteArray::number(jsonString.size());
 
 
-//    tcpSock->write();
-//    reply = qnam.post(request, data);
+////    QJsonObject json;
+////    json.insert("error", 0);
+////    json.insert("deviceid", "TL-WR842ND");
+////    json.insert("apikey", "111111111-1111-1111-1111-111111111111");
 
-//    connect(reply, SIGNAL(finished()), this, SLOT(handleHttpFinished()));
-//    connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(handleReplyError(QNetworkReply::NetworkError)));
-//    connect(reply, &QIODevice::readyRead, this, &Dialog::handleHttpReadyRead);
+////    QByteArray data = QJsonDocument(json).toJson().data();
+////    QByteArray postDataSize = QByteArray::number(data.size());
+////    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+////    request.setHeader(QNetworkRequest::ContentLengthHeader, postDataSize);
 
 
-}
+////    tcpSock->write();
+////    reply = qnam.post(request, data);
 
-void Dialog::handleSocketDisconnected()
-{
-    qDebug() << "handleSocketDisconnected";
-}
+////    connect(reply, SIGNAL(finished()), this, SLOT(handleHttpFinished()));
+////    connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(handleReplyError(QNetworkReply::NetworkError)));
+////    connect(reply, &QIODevice::readyRead, this, &Dialog::handleHttpReadyRead);
+
+
+//}
+
+//void Dialog::handleSocketDisconnected()
+//{
+//    qDebug() << "handleSocketDisconnected";
+//}
 
 void Dialog::handleSslSocketDisconnected(QSslSocket* s)
-{
-    qDebug() << "sslSocketDisconnected" << s->peerAddress();
+{    
+    QString msg = QString("%1 sslSocketDisconnected").arg(s->peerAddress().toString());
+    msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+    ui->plainTextEdit->appendPlainText(msg);
 }
 
 void Dialog::handleEncrypted(QSslSocket* s)
 {
+//    QString msg = QString("%1 encrypted").arg(s->peerAddress().toString());
+//    //qDebug() << qPrintable(msg);
+//    ui->plainTextEdit->appendPlainText(msg);
+
     QString msg = QString("%1 encrypted").arg(s->peerAddress().toString());
     //qDebug() << qPrintable(msg);
+    msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
     ui->plainTextEdit->appendPlainText(msg);
 }
 
@@ -685,137 +727,68 @@ void Dialog::turnRele(QString devId, QSslSocket* s, int id, bool bEna)
     wsSendJson(s, json);
 }
 
-void Dialog::on_pushButton_clicked()
-{
-    foreach (QString devId, devDataMap.keys()) {
-        if(devDataMap[devId]->type == ITAGZ1GL){
-            turnRele(devId, devIdMap[devId], true);
-        }
-        if(devDataMap[devId]->type == PSAB01GL){
-            turnRele(devId, devIdMap[devId], true);
-        }
-    }
-}
-
-void Dialog::on_pushButton_2_clicked()
-{
-    foreach (QString devId, devIdMap.keys()) {
-        if(devDataMap[devId]->type == ITAGZ1GL){
-            turnRele(devId, devIdMap[devId], false);
-        }
-        if(devDataMap[devId]->type == PSAB01GL){
-            turnRele(devId, devIdMap[devId], false);
-        }
-
-
-    }
-}
-
-
-void Dialog::on_pushButtonReg1On_clicked()
-{
-    foreach (QString devIdStr, devIdMap.keys()) {
-
-        if(devDataMap[devIdStr]->type == PSFA04GL){
-            turnRele(devIdStr, devIdMap[devIdStr], 0, true);
-        }
-//        turnRele(s, 1, true);
-//        turnRele(s, 2, true);
-//        turnRele(s, 3, true);
-    }
-
-}
-
-void Dialog::on_pushButtonReg1Off_clicked()
-{
-    foreach (QString devIdStr, devIdMap.keys()) {
-        if(devDataMap[devIdStr]->type == PSFA04GL){
-            turnRele(devIdStr, devIdMap[devIdStr], 0, false);
-        }
-    }
-}
-
-void Dialog::on_pushButtonReg2On_clicked()
-{
-    foreach (QString devIdStr, devIdMap.keys()) {
-        if(devDataMap[devIdStr]->type == PSFA04GL){
-            turnRele(devIdStr, devIdMap[devIdStr], 1, true);
-        }
-    }
-}
-
-void Dialog::on_pushButtonReg2Off_clicked()
-{
-    foreach (QString devIdStr, devIdMap.keys()) {
-        if(devDataMap[devIdStr]->type == PSFA04GL){
-            turnRele(devIdStr, devIdMap[devIdStr], 1, false);
-        }
-    }
-}
-
-void Dialog::on_pushButtonReg3On_clicked()
-{
-    foreach (QString devIdStr, devIdMap.keys()) {
-        if(devDataMap[devIdStr]->type == PSFA04GL){
-            turnRele(devIdStr, devIdMap[devIdStr], 2, true);
-        }
-    }
-}
-
-void Dialog::on_pushButtonReg3Off_clicked()
-{
-    foreach (QString devIdStr, devIdMap.keys()) {
-        if(devDataMap[devIdStr]->type == PSFA04GL){
-            turnRele(devIdStr, devIdMap[devIdStr], 2, false);
-        }
-    }
-}
-
-void Dialog::on_pushButtonReg4On_clicked()
-{
-    foreach (QString devIdStr, devIdMap.keys()) {
-        if(devDataMap[devIdStr]->type == PSFA04GL){
-            turnRele(devIdStr, devIdMap[devIdStr], 3, true);
-        }
-    }
-}
-
-void Dialog::on_pushButtonReg4Off_clicked()
-{
-    foreach (QString devIdStr, devIdMap.keys()) {
-        if(devDataMap[devIdStr]->type == PSFA04GL){
-            turnRele(devIdStr, devIdMap[devIdStr], 3, false);
-        }
-    }
-}
-
 void Dialog::updateTable()
 {
     QTableWidget *tw = ui->tableWidget;
     //tw->clearContents();
     QList<QString> keys = devDataMap.keys();
-    if(tw->rowCount() < keys.size()){
-        tw->setRowCount(keys.size());
+
+    foreach (QString dId, keys) {
+        if(devDataMap[dId]->rowIndex == -1){
+            int rId = tw->rowCount();
+            devDataMap[dId]->rowIndex = rId;
+            tw->insertRow(rId);
+            QTableWidgetItem *twi = new QTableWidgetItem(dId);
+            tw->setItem(rId, 0, twi);
+            twi = new QTableWidgetItem(devDataMap[dId]->typeStr);
+            tw->setItem(rId, 1, twi);
+
+            if((devDataMap[dId]->type == ITAGZ1GL) ||
+               (devDataMap[dId]->type == PSAB01GL)){
+                QPushButton *pb = devDataMap[dId]->pb[0];
+                tw->setCellWidget(rId, 2, pb);
+                devDataMap[dId]->pb[0] = pb;
+            }
+            else if(devDataMap[dId]->type == PSFA04GL){
+                for(int i=0; i<4; i++){
+                    QPushButton *pb = devDataMap[dId]->pb[i];
+                    tw->setCellWidget(rId, 2+i, pb);
+                }
+            }
+
+        }
+
+//        for(int i=0; i<tw->rowCount(); i++){
+//            QString s = ((QTableWidgetItem*)tw->cellWidget(i, 0))->text();
+//            if(s==dId){
+//            }
+//        }
+
     }
+//    int addRowsCount = (keys.size()-tw->rowCount());
+//    for(int i=0; i<addRowsCount; i++){
+
+//    }
+
     for(int id=0; id<keys.length(); id++){
         QString devIdStr = keys[id];
         TSonoffDevData &devData = *(devDataMap[devIdStr]);
-        QLabel *l = new QLabel(devIdStr);
-        l->setAlignment(Qt::AlignCenter);
-        ui->tableWidget->setCellWidget(id, 0, l);
-        l = new QLabel("type");
-        ui->tableWidget->setCellWidget(id, 1, l);
+//        QLabel *l = new QLabel(devIdStr);
+//        l->setAlignment(Qt::AlignCenter);
+//        ui->tableWidget->setCellWidget(id, 0, l);
+//        l = new QLabel("type");
+//        ui->tableWidget->setCellWidget(id, 1, l);
 
         if((devData.type == ITAGZ1GL) ||
            (devData.type == PSAB01GL)){
-            QPushButton *pb = devData.pb[0];
-            tw->setCellWidget(id, 2, pb);
-            devData.pb[0] = pb;
+//            QPushButton *pb = devData.pb[0];
+//            tw->setCellWidget(id, 2, pb);
+//            devData.pb[0] = pb;
         }
         else if(devData.type == PSFA04GL){
             for(int i=0; i<4; i++){
-                QPushButton *pb = devData.pb[i];
-                tw->setCellWidget(id, 2+i, pb);
+//                QPushButton *pb = devData.pb[i];
+//                tw->setCellWidget(id, 2+i, pb);
             }
         }
     }
@@ -824,15 +797,15 @@ void Dialog::updateTable()
 
 void Dialog::turnRele(QString devIdStr, QPushButton *pb, int releId)
 {
-    qDebug() << devIdStr << pb->text() << releId;
+    //qDebug() << devIdStr << pb->text() << releId;
 
     bool bOn = false;
-    if(pb->text().compare("off") == 0){
-        bOn = false;
+    if(pb->text() == "off"){
+        bOn = true;
         pb->setText("on");
     }
     else{
-        bOn = true;
+        bOn = false;
         pb->setText("off");
     }
 
@@ -850,8 +823,8 @@ void Dialog::udpServerOpen()
     if(udpSocket == NULL){
         int udpPort = ui->lineEditUDPport->text().toInt();
         udpSocket = new QUdpSocket(this);
-        connect(udpSocket, SIGNAL(stateChanged(QAbstractSocket::SocketState)),
-                this, SLOT(stateChanged(QAbstractSocket::SocketState)));
+//        connect(udpSocket, SIGNAL(stateChanged(QAbstractSocket::SocketState)),
+//                this, SLOT(stateChanged(QAbstractSocket::SocketState)));
 
         QString msg;
 

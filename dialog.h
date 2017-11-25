@@ -31,7 +31,9 @@ typedef struct{
     int id;
     QString devId;
     TDevTypes type;
+    QString typeStr;
     QPushButton *pb[4];
+    int rowIndex;
 } TSonoffDevData;
 
 #define PORT1 9001
@@ -84,8 +86,6 @@ private:
 
     void udpServerOpen();
     void udpServerClose();
-
-
     void turnRele(QString, QPushButton*, int);
 
 private slots:
@@ -112,9 +112,9 @@ private slots:
     void handleSslSocketDisconnected(QSslSocket*);
     void handleSslSocketReadyRead(QSslSocket*);
 
-    void handleSocketError(QSslSocket*, QAbstractSocket::SocketError);
-    void handleSocketReadyRead();
-    void handleSocketDisconnected();
+//    void handleSocketError(QSslSocket*, QAbstractSocket::SocketError);
+    //void handleSocketReadyRead();
+    //void handleSocketDisconnected();
 
     //void handleOriginAuthenticationRequired(QWebSocketCorsAuthenticator *authenticator);
     void handlePeerVerifyError(const QSslError &error);
@@ -123,20 +123,8 @@ private slots:
 
     void handleAcceptError(QAbstractSocket::SocketError);
 
-    void on_pushButton_clicked();
-    void on_pushButton_2_clicked();
 
     void handleNewTcpConnection();       
-    void on_pushButtonReg1On_clicked();
-    void on_pushButtonReg1Off_clicked();
-    void on_pushButtonReg2On_clicked();
-    void on_pushButtonReg2Off_clicked();
-    void on_pushButtonReg3On_clicked();
-    void on_pushButtonReg3Off_clicked();
-    void on_pushButtonReg4On_clicked();
-    void on_pushButtonReg4Off_clicked();
-
-
     void handleUpdPendingDatagrams();
 
 

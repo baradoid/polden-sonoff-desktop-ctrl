@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>665</width>
-    <height>480</height>
+    <height>424</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,144 +19,17 @@
   <property name="windowTitle">
    <string>Dialog</string>
   </property>
-  <widget class="QPushButton" name="pushButton">
-   <property name="geometry">
-    <rect>
-     <x>480</x>
-     <y>430</y>
-     <width>75</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>on</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="pushButton_2">
-   <property name="geometry">
-    <rect>
-     <x>460</x>
-     <y>410</y>
-     <width>75</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>off</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="pushButtonReg1On">
-   <property name="geometry">
-    <rect>
-     <x>340</x>
-     <y>400</y>
-     <width>71</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>on</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="pushButtonReg1Off">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>430</y>
-     <width>71</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>off</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="pushButtonReg2On">
-   <property name="geometry">
-    <rect>
-     <x>220</x>
-     <y>450</y>
-     <width>71</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>on</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="pushButtonReg2Off">
-   <property name="geometry">
-    <rect>
-     <x>100</x>
-     <y>420</y>
-     <width>71</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>off</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="pushButtonReg3On">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>400</y>
-     <width>71</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>on</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="pushButtonReg3Off">
-   <property name="geometry">
-    <rect>
-     <x>240</x>
-     <y>420</y>
-     <width>71</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>off</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="pushButtonReg4On">
-   <property name="geometry">
-    <rect>
-     <x>360</x>
-     <y>430</y>
-     <width>71</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>on</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="pushButtonReg4Off">
-   <property name="geometry">
-    <rect>
-     <x>540</x>
-     <y>410</y>
-     <width>71</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>off</string>
-   </property>
-  </widget>
   <widget class="QPlainTextEdit" name="plainTextEdit">
    <property name="geometry">
     <rect>
      <x>10</x>
      <y>250</y>
      <width>481</width>
-     <height>131</height>
+     <height>161</height>
     </rect>
+   </property>
+   <property name="readOnly">
+    <bool>true</bool>
    </property>
   </widget>
   <widget class="QTableWidget" name="tableWidget">
