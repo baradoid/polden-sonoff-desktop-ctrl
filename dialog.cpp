@@ -12,13 +12,16 @@
 #include <QtNetwork/QSslCertificate>
 #include <QtNetwork/QSslKey>
 
+#include <QNetworkDatagram>
+
 
 // http://10.10.7.1/device
 Dialog::Dialog(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::Dialog),
     reply(Q_NULLPTR),
-    settings("murinets", "sonoff-control")/*,
+    settings("murinets", "sonoff-control"),
+    udpSocket(NULL)/*,
     m_pWebSocketServer(Q_NULLPTR),
     tcpServ(this)*/
 {
@@ -27,6 +30,7 @@ Dialog::Dialog(QWidget *parent) :
     ui->lineEditServerIp->setText(settings.value("servIP").toString());
     ui->lineEditSSID->setText(settings.value("SSID").toString());
     ui->lineEditKey->setText(settings.value("key").toString());
+    ui->lineEditUDPport->setText(settings.value("UDP_port", 8053).toString());
 
     //int port = 9001;
     QFile certFile(QStringLiteral("ssl/selfcert.in.crt"));
@@ -121,6 +125,9 @@ Dialog::Dialog(QWidget *parent) :
     //connect(&m_deb_client, &QWebSocket::disconnected, this, &Dialog::onWebSocketClosed);
     //m_deb_client.open(QUrl(QString("http://192.168.0.101/device")));
 
+
+    udpServerOpen();
+
 }
 
 Dialog::~Dialog()
@@ -129,9 +136,12 @@ Dialog::~Dialog()
     QString key =  ui->lineEditKey->text();
     QString servIP =  ui->lineEditServerIp->text();
 
+    int udpPort = ui->lineEditUDPport->text().toInt();
+
     settings.setValue("SSID", ssidName);
     settings.setValue("key", key);
     settings.setValue("servIP", servIP);
+    settings.setValue("UDP_port", udpPort);
 
     delete ui;
 }
@@ -833,4 +843,49 @@ void Dialog::turnRele(QString devIdStr, QPushButton *pb, int releId)
     else if((dd.type == ITAGZ1GL) || (dd.type == PSAB01GL)){
         turnRele(devIdStr, devIdMap[devIdStr], bOn);
     }
+}
+
+void Dialog::udpServerOpen()
+{
+    if(udpSocket == NULL){
+        int udpPort = ui->lineEditUDPport->text().toInt();
+        udpSocket = new QUdpSocket(this);
+        connect(udpSocket, SIGNAL(stateChanged(QAbstractSocket::SocketState)),
+                this, SLOT(stateChanged(QAbstractSocket::SocketState)));
+
+        QString msg;
+
+        if(udpSocket->bind(QHostAddress::Any, udpPort) == true){
+            //qDebug("UDP bind OK");
+            msg.sprintf("UDP on %d bind OK", udpPort);
+        }
+        else{
+            msg.sprintf("UDP on %d bind FAIL", udpPort);
+        }
+        ui->plainTextEdit->appendPlainText(msg);
+
+        connect(udpSocket, SIGNAL(readyRead()),
+                this, SLOT(handleUpdPendingDatagrams()));
+    }
+}
+
+void Dialog::udpServerClose()
+{
+    udpSocket->close();
+    disconnect(udpSocket, SIGNAL(stateChanged(QAbstractSocket::SocketState)),
+               this, SLOT(stateChanged(QAbstractSocket::SocketState)));
+    disconnect(udpSocket, SIGNAL(readyRead()),
+               this, SLOT(readPendingDatagrams()));
+    ui->plainTextEdit->appendPlainText("UDP closed");
+
+}
+
+void Dialog::handleUpdPendingDatagrams()
+{
+    while (udpSocket->hasPendingDatagrams()) {
+//        dataGramCnt++;
+        QNetworkDatagram datagram = udpSocket->receiveDatagram();
+        qDebug() << datagram.data();
+    }
+
 }

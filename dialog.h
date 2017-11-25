@@ -12,6 +12,7 @@
 #include <sslserver.h>
 #include <QMap>
 #include <QSettings>
+#include <QUdpSocket>
 
 namespace Ui {
 class Dialog;
@@ -67,6 +68,8 @@ private:
 
     QSettings settings;
 
+    QUdpSocket *udpSocket;
+
     //QWebSocket m_deb_client;
 
     //QSslSocket *m_sslSocket;
@@ -78,6 +81,12 @@ private:
     void sendApReq(int port);
 
     void updateTable();
+
+    void udpServerOpen();
+    void udpServerClose();
+
+
+    void turnRele(QString, QPushButton*, int);
 
 private slots:
     void handleTimer();
@@ -117,7 +126,7 @@ private slots:
     void on_pushButton_clicked();
     void on_pushButton_2_clicked();
 
-    void handleNewTcpConnection();
+    void handleNewTcpConnection();       
     void on_pushButtonReg1On_clicked();
     void on_pushButtonReg1Off_clicked();
     void on_pushButtonReg2On_clicked();
@@ -127,7 +136,10 @@ private slots:
     void on_pushButtonReg4On_clicked();
     void on_pushButtonReg4Off_clicked();
 
-    void turnRele(QString, QPushButton*, int);
+
+    void handleUpdPendingDatagrams();
+
+
 };
 
 #endif // DIALOG_H
