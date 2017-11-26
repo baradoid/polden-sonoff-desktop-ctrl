@@ -13,6 +13,7 @@
 #include <QMap>
 #include <QSettings>
 #include <QUdpSocket>
+#include <QTableWidgetItem>
 
 namespace Ui {
 class Dialog;
@@ -34,6 +35,7 @@ typedef struct{
     QString typeStr;
     QPushButton *pb[4];
     int rowIndex;
+    QHostAddress ha;
 } TSonoffDevData;
 
 #define PORT1 9001
@@ -127,6 +129,8 @@ private slots:
     void handleUpdPendingDatagrams();
 
 
+    void on_tableWidget_itemChanged(QTableWidgetItem *item);
+    void on_tableWidget_cellChanged(int row, int column);
 };
 
 #endif // DIALOG_H

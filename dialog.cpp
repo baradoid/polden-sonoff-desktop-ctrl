@@ -366,6 +366,7 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
             tsdd->id = devDataMap.keys().size();
             tsdd->rowIndex = -1;
             tsdd->typeStr = mdl;
+            tsdd->ha = s->peerAddress();
 
             tsdd->type = unknown;
             if(mdl.compare("PSF-A04-GL") == 0){
@@ -746,20 +747,30 @@ void Dialog::updateTable()
             devDataMap[dId]->rowIndex = rId;
             tw->insertRow(rId);
             QTableWidgetItem *twi = new QTableWidgetItem(dId);
+            twi->setFlags(twi->flags() &  ~Qt::ItemIsEditable);
             tw->setItem(rId, 0, twi);
             twi = new QTableWidgetItem(devDataMap[dId]->typeStr);
+            twi->setFlags(twi->flags() &  ~Qt::ItemIsEditable);
             tw->setItem(rId, 1, twi);
+            twi = new QTableWidgetItem(devDataMap[dId]->ha.toString());
+            twi->setFlags(twi->flags() &  ~Qt::ItemIsEditable);
+            tw->setItem(rId, 2, twi);
+
+            QString descr = settings.value(dId).toString();
+            twi = new QTableWidgetItem(descr);
+            twi->setTextAlignment(Qt::AlignCenter);
+            tw->setItem(rId, 3, twi);
 
             if((devDataMap[dId]->type == ITAGZ1GL) ||
                (devDataMap[dId]->type == PSAB01GL)){
                 QPushButton *pb = devDataMap[dId]->pb[0];
-                tw->setCellWidget(rId, 2, pb);
+                tw->setCellWidget(rId, 4, pb);
                 devDataMap[dId]->pb[0] = pb;
             }
             else if(devDataMap[dId]->type == PSFA04GL){
                 for(int i=0; i<4; i++){
                     QPushButton *pb = devDataMap[dId]->pb[i];
-                    tw->setCellWidget(rId, 2+i, pb);
+                    tw->setCellWidget(rId, 4+i, pb);
                 }
             }
 
@@ -907,14 +918,35 @@ void Dialog::handleUpdPendingDatagrams()
                 continue;
             }
             turnRele(deviceId, releInd, releEna);
+        }
+    }
+}
 
+void Dialog::on_tableWidget_itemChanged(QTableWidgetItem *item)
+{
+    if(item->column() == 3){
+        //qDebug() << item->row() << item->column()<< item->text();
+        QList<QString> keys = devDataMap.keys();
 
+        foreach (QString dId, keys) {
+            if(devDataMap[dId]->rowIndex == item->row()){
+                QString descr = item->text();
+
+                settings.setValue(dId, descr);
+
+                QString msg = QString("%1 set description \"%2\" ").arg(dId).arg(descr);
+                //qDebug() << qPrintable(dId) << item->text();
+                msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+                ui->plainTextEdit->appendPlainText(msg);
+                ui->tableWidget->resizeColumnsToContents();
+                break;
+            }
 
         }
-
-
-
-
     }
+}
 
+void Dialog::on_tableWidget_cellChanged(int row, int column)
+{
+    //qDebug() << row << column << ((QTableWidgetItem*)ui->tableWidget->cellWidget(row, column))->text();
 }
