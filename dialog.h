@@ -78,8 +78,7 @@ private:
     //QMap<QSslSocket*, >
     void wsSendJson(QTcpSocket *s, QJsonObject);
 
-    void turnRele(QString devId, QSslSocket*,bool);
-    void turnRele(QString devId, QSslSocket*,int, bool);
+    void turnRele(QString devId, int, bool);
     void sendApReq(int port);
 
     void updateTable();

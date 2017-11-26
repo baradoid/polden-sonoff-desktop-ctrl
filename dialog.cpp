@@ -13,6 +13,7 @@
 #include <QtNetwork/QSslKey>
 
 #include <QNetworkDatagram>
+#include <QStringList>
 
 
 // http://10.10.7.1/device
@@ -671,60 +672,66 @@ void Dialog::handleAcceptError(QAbstractSocket::SocketError)
 
 }
 
-void Dialog::turnRele(QString devId, QSslSocket* s, bool bEna)
+
+void Dialog::turnRele(QString devId, int id, bool bEna)
 {
-    QJsonObject paramJson;
-    if(bEna)
-        paramJson["switch"] = "on";
-    else
-        paramJson["switch"] = "off";
+    QSslSocket* s = devIdMap[devId];
+    TDevTypes devType = devDataMap[devId]->type;
+    if((devType == ITAGZ1GL)||(devType == PSAB01GL)){
+        QJsonObject paramJson;
+        if(bEna)
+            paramJson["switch"] = "on";
+        else
+            paramJson["switch"] = "off";
 
-    QJsonObject json;
-    json["action"] = "update";
-    json["deviceid"] = devId;
-    json["apikey"] = "111111111-1111-1111-1111-111111111111";
-    //json["userAgent"] = "app";
-    //json["sequence"] = "1494806715179";
-    //json["ts"] = 0;
-    //json["from"] = "app";
+        QJsonObject json;
+        json["action"] = "update";
+        json["deviceid"] = devId;
+        json["apikey"] = "111111111-1111-1111-1111-111111111111";
+        //json["userAgent"] = "app";
+        //json["sequence"] = "1494806715179";
+        //json["ts"] = 0;
+        //json["from"] = "app";
 
-    json["params"] = paramJson;
+        json["params"] = paramJson;
 
-    //qDebug() << QJsonDocument(json).toJson().data();
-    wsSendJson(s, json);
-}
+        //qDebug() << QJsonDocument(json).toJson().data();
+        wsSendJson(s, json);
+    }
+    else if(devType == PSFA04GL){
 
-void Dialog::turnRele(QString devId, QSslSocket* s, int id, bool bEna)
-{
-    QJsonArray jsonArr;
-    QJsonObject paramJson;
-    paramJson["outlet"] = id;
-    paramJson["switch"] = bEna?"on":"off";
+        QJsonArray jsonArr;
+        QJsonObject paramJson;
+        paramJson["outlet"] = id;
+        paramJson["switch"] = bEna?"on":"off";
 
-    jsonArr.append(paramJson);
-//    paramJson["outlet"] = 1;
-//    jsonArr.append(paramJson);
-//    paramJson["outlet"] = 2;
-//    jsonArr.append(paramJson);
-//    paramJson["outlet"] = 3;
-//    jsonArr.append(paramJson);
+        jsonArr.append(paramJson);
+    //    paramJson["outlet"] = 1;
+    //    jsonArr.append(paramJson);
+    //    paramJson["outlet"] = 2;
+    //    jsonArr.append(paramJson);
+    //    paramJson["outlet"] = 3;
+    //    jsonArr.append(paramJson);
 
 
-    QJsonObject jsonSwitches;
-    jsonSwitches["switches"] = jsonArr;
-    QJsonObject json;
-    json["action"] = "update";
-    json["deviceid"] = devId;
-    json["apikey"] = "111111111-1111-1111-1111-111111111111";
-    //json["userAgent"] = "app";
-    //json["sequence"] = "1494806715179";
-    //json["ts"] = 0;
-    //json["from"] = "app";
+        QJsonObject jsonSwitches;
+        jsonSwitches["switches"] = jsonArr;
+        QJsonObject json;
+        json["action"] = "update";
+        json["deviceid"] = devId;
+        json["apikey"] = "111111111-1111-1111-1111-111111111111";
+        //json["userAgent"] = "app";
+        //json["sequence"] = "1494806715179";
+        //json["ts"] = 0;
+        //json["from"] = "app";
 
-    json["params"] = jsonSwitches;
+        json["params"] = jsonSwitches;
 
-    //qDebug() << QJsonDocument(json).toJson().data();
-    wsSendJson(s, json);
+        //qDebug() << QJsonDocument(json).toJson().data();
+        wsSendJson(s, json);
+    }
+
+
 }
 
 void Dialog::updateTable()
@@ -811,10 +818,10 @@ void Dialog::turnRele(QString devIdStr, QPushButton *pb, int releId)
 
     TSonoffDevData &dd = *devDataMap[devIdStr];
     if(dd.type == PSFA04GL){
-        turnRele(devIdStr, devIdMap[devIdStr], releId, bOn);
+        turnRele(devIdStr, releId, bOn);
     }
-    else if((dd.type == ITAGZ1GL) || (dd.type == PSAB01GL)){
-        turnRele(devIdStr, devIdMap[devIdStr], bOn);
+    else if((dd.type == ITAGZ1GL) || (dd.type == PSAB01GL)){        
+        turnRele(devIdStr, 0, bOn);
     }
 }
 
@@ -858,7 +865,56 @@ void Dialog::handleUpdPendingDatagrams()
     while (udpSocket->hasPendingDatagrams()) {
 //        dataGramCnt++;
         QNetworkDatagram datagram = udpSocket->receiveDatagram();
-        qDebug() << datagram.data();
+        //qDebug() << datagram.data();
+        QString msg(datagram.data());
+
+
+        QString msgText = QString("UDP: %1:%2").arg(udpSocket->peerAddress().toString()).arg(msg);
+        //qDebug() << qPrintable(msg);
+        msgText = QTime::currentTime().toString("hh:mm:ss")+"> " + msgText;
+        ui->plainTextEdit->appendPlainText(msgText);
+
+        QStringList msgParts = msg.split(":");
+        if(msgParts.length() < 2)
+            continue;
+        QString deviceId = msgParts[0];
+        if(deviceId.length() != 10){
+            msgText = QString("UDP: devId len err %1").arg(deviceId.length());
+            msgText = QTime::currentTime().toString("hh:mm:ss")+"> " + msgText;
+            ui->plainTextEdit->appendPlainText(msgText);
+            continue;
+        }
+
+        for(int i=1; i<msgParts.length(); i++){
+            QString cmd = msgParts[i];
+            QStringList cmdParts = cmd.split("->");
+            if(cmdParts.length()!=2)
+                continue;
+            int releInd = cmdParts[0].toInt();
+            if( (releInd<0) || (releInd>3)){
+                continue;
+            }
+            if(cmdParts[1].length() != 1)
+                continue;
+            bool releEna = false;
+            if(cmdParts[1] == 'e'){
+                releEna = true;
+            }
+            else if(cmdParts[1] == 'd'){
+                releEna = false;
+            }
+            else{
+                continue;
+            }
+            turnRele(deviceId, releInd, releEna);
+
+
+
+        }
+
+
+
+
     }
 
 }
