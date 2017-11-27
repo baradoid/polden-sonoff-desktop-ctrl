@@ -36,6 +36,7 @@ typedef struct{
     QPushButton *pb[4];
     int rowIndex;
     QHostAddress ha;
+    QTableWidgetItem *twiRssi;
 } TSonoffDevData;
 
 #define PORT1 9001

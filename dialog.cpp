@@ -12,9 +12,13 @@
 #include <QtNetwork/QSslCertificate>
 #include <QtNetwork/QSslKey>
 
+
 #include <QNetworkDatagram>
 #include <QStringList>
 
+
+#include <QtNetwork/QSslError>
+//#include <QSslSocket>
 
 // http://10.10.7.1/device
 Dialog::Dialog(QWidget *parent) :
@@ -129,6 +133,12 @@ Dialog::Dialog(QWidget *parent) :
 
     udpServerOpen();
 
+    QStringList columnHeaderNames;
+    columnHeaderNames << "id" << "type"<< "ip"<< "descr"<< "rssi"
+                      << "r0"<< "r1"<< "r2"<< "r3";
+    ui->tableWidget->setHorizontalHeaderLabels(columnHeaderNames);
+    ui->tableWidget->resizeColumnsToContents();
+
 }
 
 Dialog::~Dialog()
@@ -184,12 +194,17 @@ void Dialog::handleHttpReadyRead()
 
 void Dialog::handleSSLError(QNetworkReply*,QList<QSslError>)
 {
-    qDebug() << "handleSSLError";
+    //qDebug() << "handleSSLError";
+    QString msg = QString("handleSSLError");
+    ui->plainTextEdit->appendPlainText(msg);
 }
 
 void Dialog::handleSSLError(QSslSocket* s, QList<QSslError> erl)
 {
-    qDebug() << "handleSSLError" << s->peerAddress() <<  s->sslErrors() << erl;
+    QString msg = QString("handleSSLError");
+    ui->plainTextEdit->appendPlainText(msg);
+
+//    qDebug() << "handleSSLError" << s->peerAddress() <<  s->sslErrors() << erl;
 }
 
 //void Dialog::onNewConnection()
@@ -220,10 +235,13 @@ void Dialog::handleNewSslConnection()
 
     sslSockList.append(sslSock);
     connect(sslSock, &QSslSocket::encrypted, [=](){ handleEncrypted(sslSock);});
-    //connect(sslSock, &QSslSocket::sslErrors, [this, sslSock](const QList<QSslError> &erl){ handleSSLError(sslSock, erl);} );
+    //connect(sslSock, &QSslSocket::sslErrors, [this, sslSock](const QList<QSslError> &erl){/* handleSSLError(sslSock, erl);*/} );
     connect(sslSock, &QSslSocket::readyRead, [=](){ handleSslSocketReadyRead(sslSock);} );
-    //connect(sslSock, &QSslSocket::error, [=](QAbstractSocket::SocketError serr){ handleSocketError(sslSock, serr);} );
+    //connect(sslSock, &QSslSocket::sslErrors, [=](){ /*handleSSLError(sslSock, serr);*/} );
     connect(sslSock, &QSslSocket::disconnected, [=](){ handleSslSocketDisconnected(sslSock);} );
+
+    connect(sslSock, &QSslSocket::peerVerifyError, [=](){ } );
+    //connect(sslSock, &QSslSocket::sslErrors, [=](){ } );
 
     sslSock->setSslConfiguration(sslConfiguration);
     sslSock->startServerEncryption();
@@ -269,7 +287,9 @@ void Dialog::handleNewTcpConnection()
 
 void Dialog::handlePeerVerifyError(const QSslError &error)
 {
-    qDebug() << "handlePeerVerifyError";
+    //qDebug() << "handlePeerVerifyError";
+    QString msg = QString("handlePeerVerifyError");
+    ui->plainTextEdit->appendPlainText(msg);
 }
 
 void Dialog::handleSslSocketReadyRead(QSslSocket* s)
@@ -384,6 +404,8 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
                 tsdd->pb[i] = pb;
                 connect(pb, &QPushButton::clicked, [=](){ turnRele(devIdStr, pb, i);});
             }
+
+            tsdd->twiRssi = NULL;
         }
 
         updateTable();
@@ -401,6 +423,11 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
 
                 wsSendJson(s, jsonAck);
 
+                int rssi = io["params"].toObject()["rssi"].toInt(-99);
+                if(tsdd->twiRssi != NULL){
+                    tsdd->twiRssi->setText(QString("%1").arg(rssi));
+                }
+                //qDebug() << rssi;
                 QString swStr;
                 switch(tsdd->type){
                 case ITAGZ1GL:
@@ -670,6 +697,8 @@ void Dialog::on_pushButtonGetReq_clicked()
 void Dialog::handleAcceptError(QAbstractSocket::SocketError)
 {
     qDebug() << "handleAcceptError";
+    QString msg = QString("handleAcceptError");
+    ui->plainTextEdit->appendPlainText(msg);
 
 }
 
@@ -761,16 +790,23 @@ void Dialog::updateTable()
             twi->setTextAlignment(Qt::AlignCenter);
             tw->setItem(rId, 3, twi);
 
+            twi = new QTableWidgetItem();
+            twi->setTextAlignment(Qt::AlignCenter);
+            twi->setFlags(twi->flags() &  ~Qt::ItemIsEditable);
+            tw->setItem(rId, 4, twi);
+            devDataMap[dId]->twiRssi = twi;
+
+
             if((devDataMap[dId]->type == ITAGZ1GL) ||
                (devDataMap[dId]->type == PSAB01GL)){
                 QPushButton *pb = devDataMap[dId]->pb[0];
-                tw->setCellWidget(rId, 4, pb);
+                tw->setCellWidget(rId, 5, pb);
                 devDataMap[dId]->pb[0] = pb;
             }
             else if(devDataMap[dId]->type == PSFA04GL){
                 for(int i=0; i<4; i++){
                     QPushButton *pb = devDataMap[dId]->pb[i];
-                    tw->setCellWidget(rId, 4+i, pb);
+                    tw->setCellWidget(rId, 5+i, pb);
                 }
             }
 
