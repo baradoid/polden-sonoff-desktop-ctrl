@@ -411,17 +411,20 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
                 pb = new QPushButton("na");
                 tsdd->srartupStatePb[i] = pb;
                 connect(pb, &QPushButton::clicked, [=](){
-                    bool bOn = false;
-                    if(pb->text() == "off"){
-                        bOn = true;
+                    TStartupType startUpState = OFF;
+                    if(pb->text() == "off"){                        
+                        startUpState = ON;
                         pb->setText("on");
                     }
-                    else{
-                        bOn = false;
+                    else if(pb->text() == "on"){
+                        startUpState = STAY;
+                        pb->setText("stay");
+                    }
+                    else if(pb->text() == "stay"){
+                        startUpState = OFF;
                         pb->setText("off");
                     }
-
-                    turnStartUpRele(devIdStr, i, bOn); /*turnRele(devIdStr, pb, i);*/
+                    turnStartUpRele(devIdStr, i, startUpState); /*turnRele(devIdStr, pb, i);*/
                 });
             }
 
@@ -498,11 +501,13 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
             //qDebug() << s->peerAddress()  << "respond:" << io["error"].toString().toInt() /*<< "seq:" << io["sequence"].toString()*/;
 
             int err = io["error"].toString().toInt();
-            if(err != 0){
-                QString msg = QString("%1 respond %2").arg(s->peerAddress().toString()).arg(err);
-                msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
-                ui->plainTextEdit->appendPlainText(msg);
+            if(err == 0){
             }
+            else{
+            }
+            QString msg = QString("%1 respond %2").arg(s->peerAddress().toString()).arg(err);
+            msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+            ui->plainTextEdit->appendPlainText(msg);
         }
         else{
             //qDebug() << s->peerAddress()  << "unknown" << ba;
@@ -788,16 +793,24 @@ void Dialog::turnRele(QString devId, int id, bool bEna)
     }
 }
 
-void Dialog::turnStartUpRele(QString devId, int id, bool bEna)
+void Dialog::turnStartUpRele(QString devId, int id, TStartupType startUpState)
 {
     QSslSocket* s = devIdMap[devId];
     TDevTypes devType = devDataMap[devId]->type;
     if((devType == ITAGZ1GL)||(devType == PSAB01GL)){
         QJsonObject paramJson;
-        if(bEna)
+
+        switch(startUpState){
+        case ON:
             paramJson["startup"] = "on";
-        else
+            break;
+        case OFF:
             paramJson["startup"] = "off";
+            break;
+        case STAY:
+            paramJson["startup"] = "stay";
+            break;
+        }
 
         QJsonObject json;
         json["action"] = "update";

@@ -40,6 +40,12 @@ typedef struct{
     QPushButton *srartupStatePb[4];
 } TSonoffDevData;
 
+typedef enum{
+    ON,
+    OFF,
+    STAY
+} TStartupType;
+
 #define PORT1 9001
 //#define PORT2 9002
 class Dialog : public QDialog
@@ -90,7 +96,7 @@ private:
     void udpServerOpen();
     void udpServerClose();
     void turnRele(QString, QPushButton*, int);
-    void turnStartUpRele(QString devId, int id, bool bEna);
+    void turnStartUpRele(QString devId, int id, TStartupType startUpState);
 
 private slots:
     void handleTimer();
