@@ -36,8 +36,10 @@ typedef struct{
     QPushButton *pb[4];
     int rowIndex;
     QHostAddress ha;
-    QTableWidgetItem *twiRssi;
+    QTableWidgetItem *twiRssi, *twiIp;
     QPushButton *srartupStatePb[4];
+    bool bOnline;
+    int lastOnlineMsecs;
 } TSonoffDevData;
 
 typedef enum{
@@ -82,6 +84,9 @@ private:
 
     QUdpSocket *udpSocket;
 
+    QPalette *paletteGrey, *paletteRed, *paletteGreen;
+
+
     //QWebSocket m_deb_client;
 
     //QSslSocket *m_sslSocket;
@@ -98,8 +103,9 @@ private:
     void turnRele(QString, QPushButton*, int);
     void turnStartUpRele(QString devId, int id, TStartupType startUpState);
 
+    void updateConnection(QString devId);
 private slots:
-    void handleTimer();
+    void handleCheckConnectionTimeOutTimer();
     void slotAuthenticationRequired(QNetworkReply*,QAuthenticator *authenticator);
     void handleHttpFinished();
     void handleHttpReadyRead();

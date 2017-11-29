@@ -120,10 +120,10 @@ Dialog::Dialog(QWidget *parent) :
     connect(&qnam, SIGNAL(finished(QNetworkReply*)),
             this, SLOT(handleQNmFinished(QNetworkReply*)));
 
-    timer.setInterval(500);
+    timer.setInterval(1000);
     timer.setSingleShot(false);
     connect(&timer, SIGNAL(timeout()),
-            this, SLOT(handleTimer()));
+            this, SLOT(handleCheckConnectionTimeOutTimer()));
     timer.start();
 
     //connect(&m_deb_client, &QWebSocket::connected, this, &Dialog::onWebSocketConnected);
@@ -143,6 +143,14 @@ Dialog::Dialog(QWidget *parent) :
     ui->tableWidget->setHorizontalHeaderLabels(columnHeaderNames);
     ui->tableWidget->resizeColumnsToContents();
 
+
+    paletteGrey = new QPalette();
+    paletteGrey->setColor(QPalette::Base,Qt::lightGray);
+    paletteRed = new QPalette();
+    paletteRed->setColor(QPalette::Base,Qt::red);
+    paletteGreen = new QPalette();
+    paletteGreen->setColor(QPalette::Base,Qt::green);
+
 }
 
 Dialog::~Dialog()
@@ -161,8 +169,24 @@ Dialog::~Dialog()
     delete ui;
 }
 
-void Dialog::handleTimer()
+void Dialog::handleCheckConnectionTimeOutTimer()
 {
+    int curTimeMsecs = QTime::currentTime().msecsSinceStartOfDay();
+    QList<QString> kList = devDataMap.keys();
+    foreach (QString k, kList) {
+        TSonoffDevData *tdd = devDataMap[k];
+        if(tdd->bOnline){
+            if( (curTimeMsecs - tdd->lastOnlineMsecs) > 60000){
+                tdd->bOnline = false;
+                tdd->twiIp->setBackground(Qt::red);
+
+                QString msg = QString("%1 %2 goes offline").arg(tdd->ha.toString()).arg(tdd->devId);
+                //qDebug() << s->peerAddress() << "PING-PONG" << QTime::currentTime().toString("mm:ss:zzz");
+                msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+                ui->plainTextEdit->appendPlainText(msg);
+            }
+        }
+    }
 
 //    if((reply == Q_NULLPTR) ||
 //            ((reply != Q_NULLPTR) && (reply->isFinished()))){
@@ -377,6 +401,7 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
 
 
 
+
         QJsonObject jsonAck;
         jsonAck["error"] = 0;
         jsonAck["deviceid"] = devIdStr;
@@ -427,13 +452,12 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
                     turnStartUpRele(devIdStr, i, startUpState); /*turnRele(devIdStr, pb, i);*/
                 });
             }
-
             tsdd->twiRssi = NULL;
-
-
         }
 
         updateTable();
+
+        updateConnection(devIdStr);
 
         if(io.contains("action")){
             if(io["action"].toString() == "update"){
@@ -518,6 +542,11 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
         }
     }
     else if(ba[0] == 0x89){
+        QString msg = QString("%1 p-p").arg(s->peerAddress().toString());
+        //qDebug() << s->peerAddress() << "PING-PONG" << QTime::currentTime().toString("mm:ss:zzz");
+        msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
+        //ui->plainTextEdit->appendPlainText(msg);
+
         QByteArray dataAck;
         dataAck.append((char)0x8A);
         dataAck.append((char)0x00);
@@ -528,10 +557,13 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
         dataAck.append((char)0x00);
         s->write(dataAck);
 
-        QString msg = QString("%1 p-p").arg(s->peerAddress().toString());
-        //qDebug() << s->peerAddress() << "PING-PONG" << QTime::currentTime().toString("mm:ss:zzz");
-        msg = QTime::currentTime().toString("hh:mm:ss")+"> " + msg;
-        //ui->plainTextEdit->appendPlainText(msg);
+        QList<QString> kList = devDataMap.keys();
+        foreach (QString k, kList) {
+            TSonoffDevData *tdd = devDataMap[k];
+            if(tdd->ha == s->peerAddress()){
+                updateConnection(k);
+            }
+        }
 
     }
     else{        
@@ -849,8 +881,11 @@ void Dialog::updateTable()
             twi = new QTableWidgetItem(devDataMap[dId]->typeStr);
             twi->setFlags(twi->flags() &  ~Qt::ItemIsEditable);
             tw->setItem(rId, 1, twi);
+
             twi = new QTableWidgetItem(devDataMap[dId]->ha.toString());
-            twi->setFlags(twi->flags() &  ~Qt::ItemIsEditable);
+            twi->setFlags(twi->flags() &  ~Qt::ItemIsEditable);            
+            twi->setBackground(Qt::green);
+            devDataMap[dId]->twiIp = twi;
             tw->setItem(rId, 2, twi);
 
             QString descr = settings.value(dId).toString();
@@ -987,7 +1022,7 @@ void Dialog::handleUpdPendingDatagrams()
         QString msg(datagram.data());
 
 
-        QString msgText = QString("UDP: %1:%2").arg(udpSocket->peerAddress().toString()).arg(msg);
+        QString msgText = QString("UDP: %1:> \"%2\"").arg(datagram.senderAddress().toString()).arg(msg);
         //qDebug() << qPrintable(msg);
         msgText = QTime::currentTime().toString("hh:mm:ss")+"> " + msgText;
         ui->plainTextEdit->appendPlainText(msgText);
@@ -1003,28 +1038,48 @@ void Dialog::handleUpdPendingDatagrams()
             continue;
         }
 
-        for(int i=1; i<msgParts.length(); i++){
-            QString cmd = msgParts[i];
-            QStringList cmdParts = cmd.split("->");
-            if(cmdParts.length()!=2)
-                continue;
-            int releInd = cmdParts[0].toInt();
-            if( (releInd<0) || (releInd>3)){
-                continue;
-            }
-            if(cmdParts[1].length() != 1)
-                continue;
-            bool releEna = false;
-            if(cmdParts[1] == 'e'){
-                releEna = true;
-            }
-            else if(cmdParts[1] == 'd'){
-                releEna = false;
+        if(msgParts[1]=="stat?"){
+            if(devDataMap.contains(deviceId) == false){
+                msg = (deviceId+":"+"offline");
             }
             else{
-                continue;
+                TSonoffDevData *sdd = devDataMap[deviceId];
+                if(sdd->bOnline == true)
+                    msg = (deviceId+":"+"online");
+                else
+                    msg = (deviceId+":"+"offline");
             }
-            turnRele(deviceId, releInd, releEna);
+
+            //udpSocket->writeDatagram(datagram.makeReply(msg.toLatin1()));
+            QHostAddress replHa = datagram. senderAddress();
+            QUdpSocket udpReplSock;
+            udpReplSock.writeDatagram(msg.toLatin1(), replHa, 8054);
+            //qDebug()<<datagram. senderAddress() << datagram.senderPort()  << "sendErr"<< udpReplSock.writeDatagram(msg.toLatin1(), replHa, 8054);
+        }
+        else{
+            for(int i=1; i<msgParts.length(); i++){
+                QString cmd = msgParts[i];
+                QStringList cmdParts = cmd.split("->");
+                if(cmdParts.length()!=2)
+                    continue;
+                int releInd = cmdParts[0].toInt();
+                if( (releInd<0) || (releInd>3)){
+                    continue;
+                }
+                if(cmdParts[1].length() != 1)
+                    continue;
+                bool releEna = false;
+                if(cmdParts[1] == 'e'){
+                    releEna = true;
+                }
+                else if(cmdParts[1] == 'd'){
+                    releEna = false;
+                }
+                else{
+                    continue;
+                }
+                turnRele(deviceId, releInd, releEna);
+            }
         }
     }
 }
@@ -1056,4 +1111,16 @@ void Dialog::on_tableWidget_itemChanged(QTableWidgetItem *item)
 void Dialog::on_tableWidget_cellChanged(int row, int column)
 {
     //qDebug() << row << column << ((QTableWidgetItem*)ui->tableWidget->cellWidget(row, column))->text();
+}
+
+void Dialog::updateConnection(QString devId)
+{
+    if(devDataMap.contains(devId) == false)
+        return;
+    int curTimeMsecs = QTime::currentTime().msecsSinceStartOfDay();
+    TSonoffDevData *tdd = devDataMap[devId];
+    tdd->lastOnlineMsecs = curTimeMsecs;
+    tdd->bOnline = true;
+    tdd->twiIp->setBackground(Qt::green);
+
 }
