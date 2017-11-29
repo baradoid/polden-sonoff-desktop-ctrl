@@ -37,6 +37,7 @@ typedef struct{
     int rowIndex;
     QHostAddress ha;
     QTableWidgetItem *twiRssi;
+    QPushButton *srartupStatePb[4];
 } TSonoffDevData;
 
 #define PORT1 9001
@@ -89,6 +90,7 @@ private:
     void udpServerOpen();
     void udpServerClose();
     void turnRele(QString, QPushButton*, int);
+    void turnStartUpRele(QString devId, int id, bool bEna);
 
 private slots:
     void handleTimer();

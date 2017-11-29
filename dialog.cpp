@@ -135,7 +135,11 @@ Dialog::Dialog(QWidget *parent) :
 
     QStringList columnHeaderNames;
     columnHeaderNames << "id" << "type"<< "ip"<< "descr"<< "rssi"
-                      << "r0"<< "r1"<< "r2"<< "r3";
+                      << "r0"<< "r1"<< "r2"<< "r3"
+                      << ""
+                      << "s0"<< "s1"<< "s2"<< "s3";
+
+    ui->tableWidget->setColumnCount(columnHeaderNames.length());
     ui->tableWidget->setHorizontalHeaderLabels(columnHeaderNames);
     ui->tableWidget->resizeColumnsToContents();
 
@@ -403,9 +407,27 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
                 QPushButton *pb = new QPushButton("na");
                 tsdd->pb[i] = pb;
                 connect(pb, &QPushButton::clicked, [=](){ turnRele(devIdStr, pb, i);});
+
+                pb = new QPushButton("na");
+                tsdd->srartupStatePb[i] = pb;
+                connect(pb, &QPushButton::clicked, [=](){
+                    bool bOn = false;
+                    if(pb->text() == "off"){
+                        bOn = true;
+                        pb->setText("on");
+                    }
+                    else{
+                        bOn = false;
+                        pb->setText("off");
+                    }
+
+                    turnStartUpRele(devIdStr, i, bOn); /*turnRele(devIdStr, pb, i);*/
+                });
             }
 
             tsdd->twiRssi = NULL;
+
+
         }
 
         updateTable();
@@ -434,6 +456,9 @@ void Dialog::handleSslSocketReadyRead(QSslSocket* s)
                 case PSAB01GL:
                     swStr = io["params"].toObject()["switch"].toString();
                     tsdd->pb[0]->setText(swStr);
+
+                    swStr = io["params"].toObject()["startup"].toString();
+                    tsdd->srartupStatePb[0]->setText(swStr);
                     break;
                 case PSFA04GL:
                     //qDebug() << io["params"].toObject()["switches"];
@@ -668,6 +693,7 @@ void Dialog::sendApReq(int port)
     request.setHeader(QNetworkRequest::ContentLengthHeader, postDataSize);
 
 
+    //qnam.op
     reply = qnam.post(request, data);
 
     connect(reply, SIGNAL(finished()), this, SLOT(handleHttpFinished()));
@@ -760,6 +786,35 @@ void Dialog::turnRele(QString devId, int id, bool bEna)
         //qDebug() << QJsonDocument(json).toJson().data();
         wsSendJson(s, json);
     }
+}
+
+void Dialog::turnStartUpRele(QString devId, int id, bool bEna)
+{
+    QSslSocket* s = devIdMap[devId];
+    TDevTypes devType = devDataMap[devId]->type;
+    if((devType == ITAGZ1GL)||(devType == PSAB01GL)){
+        QJsonObject paramJson;
+        if(bEna)
+            paramJson["startup"] = "on";
+        else
+            paramJson["startup"] = "off";
+
+        QJsonObject json;
+        json["action"] = "update";
+        json["deviceid"] = devId;
+        json["apikey"] = "111111111-1111-1111-1111-111111111111";
+        //json["userAgent"] = "app";
+        //json["sequence"] = "1494806715179";
+        //json["ts"] = 0;
+        //json["from"] = "app";
+
+        json["params"] = paramJson;
+
+        //qDebug() << QJsonDocument(json).toJson().data();
+        wsSendJson(s, json);
+    }
+    else if(devType == PSFA04GL){
+    }
 
 
 }
@@ -801,7 +856,10 @@ void Dialog::updateTable()
                (devDataMap[dId]->type == PSAB01GL)){
                 QPushButton *pb = devDataMap[dId]->pb[0];
                 tw->setCellWidget(rId, 5, pb);
-                devDataMap[dId]->pb[0] = pb;
+                //devDataMap[dId]->pb[0] = pb;
+
+                pb = devDataMap[dId]->srartupStatePb[0];
+                tw->setCellWidget(rId, 10, pb);
             }
             else if(devDataMap[dId]->type == PSFA04GL){
                 for(int i=0; i<4; i++){
